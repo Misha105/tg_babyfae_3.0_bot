@@ -97,7 +97,7 @@ export async function apiPost<T = unknown>(endpoint: string, data?: unknown): Pr
  */
 export async function apiDelete<T = unknown>(endpoint: string, data?: unknown): Promise<T> {
   return apiRequest<T>(endpoint, {
-    method: 'POST', // Using POST for delete operations as per current API design
+    method: 'DELETE',
     body: data ? JSON.stringify(data) : undefined,
   });
 }

@@ -2,22 +2,12 @@ import cron from 'node-cron';
 import TelegramBot from 'node-telegram-bot-api';
 import { dbAsync } from '../database/db-helper';
 import { getLocale } from '../locales';
-
-interface NotificationScheduleRow {
-  id: string;
-  user_id: number;
-  chat_id: number;
-  type: string;
-  schedule_data: string;
-  next_run: number;
-  enabled: number;
-}
+import type { NotificationScheduleRow } from '../types/db';
 
 interface ScheduleData {
   intervalMinutes?: number;
   language?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
+  timesOfDay?: string[];
 }
 
 let isProcessingNotifications = false;

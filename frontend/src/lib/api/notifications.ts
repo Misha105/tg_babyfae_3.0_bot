@@ -1,4 +1,4 @@
-import { apiPost } from './client';
+import { apiPost, apiDelete } from './client';
 
 export interface SchedulePayload {
   id: string;
@@ -19,5 +19,5 @@ export const syncSchedule = async (schedule: SchedulePayload) => {
 };
 
 export const deleteSchedule = async (id: string, user_id: number) => {
-  return apiPost('/api/schedules/delete', { id, user_id });
+  return apiDelete('/api/schedules', { id, user_id });
 };

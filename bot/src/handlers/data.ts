@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { Request, Response } from 'express';
 import { dbAsync } from '../database/db-helper';
+import { upsertRecord } from '../database/db-utils';
 import bot from '../telegram';
 import { 
   validateUserId, 
@@ -13,6 +14,7 @@ import {
 } from '../utils/validation';
 import type { ValidationResult } from '../utils/validation';
 import { logger } from '../utils/logger';
+import type { UserRow, ActivityRow, CustomActivityRow, GrowthRecordRow, NotificationScheduleRow } from '../types/db';
 
 // Limit import payloads to reduce DoS risk and enforce audit finding #2 safeguards.
 const MAX_IMPORT_RECORDS = 5000;
@@ -53,16 +55,11 @@ export const getUserData = async (req: Request, res: Response) => {
     const activitiesParams = before ? [telegramId, before, limit] : [telegramId, limit];
 
     // Use Promise.all for parallel queries (performance optimization)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [user, activities, customActivities, growthRecords] = await Promise.all([
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dbAsync.get<any>('SELECT * FROM users WHERE telegram_id = ?', [telegramId]),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dbAsync.all<any>(activitiesSql, activitiesParams),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dbAsync.all<any>('SELECT * FROM custom_activities WHERE telegram_id = ?', [telegramId]),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dbAsync.all<any>('SELECT * FROM growth_records WHERE telegram_id = ? ORDER BY date DESC', [telegramId])
+      dbAsync.get<UserRow>('SELECT * FROM users WHERE telegram_id = ?', [telegramId]),
+      dbAsync.all<ActivityRow>(activitiesSql, activitiesParams),
+      dbAsync.all<CustomActivityRow>('SELECT * FROM custom_activities WHERE telegram_id = ?', [telegramId]),
+      dbAsync.all<GrowthRecordRow>('SELECT * FROM growth_records WHERE telegram_id = ? ORDER BY date DESC', [telegramId])
     ]);
 
     res.json({
@@ -161,28 +158,18 @@ export const saveActivity = async (req: Request, res: Response) => {
   }
 
   try {
-    // Use WHERE clause in ON CONFLICT to prevent overwriting other users' data if ID collides
-    const sql = `
-      INSERT INTO activities (id, telegram_id, type, timestamp, data)
-      VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        type = excluded.type,
-        timestamp = excluded.timestamp,
-        data = excluded.data
-      WHERE activities.telegram_id = excluded.telegram_id
-    `;
-    const result = await dbAsync.run(sql, [
-      activity.id,
-      telegramId,
-      activity.type,
-      activity.timestamp,
-      JSON.stringify(activity)
-    ]);
+    const result = await upsertRecord(
+      'activities',
+      ['id', 'type', 'timestamp', 'data'],
+      [activity.id, activity.type, activity.timestamp, JSON.stringify(activity)],
+      'id',
+      ['type', 'timestamp', 'data'],
+      telegramId
+    );
 
-    if (result.changes === 0) {
-      // If changes is 0, it means the ID exists but belongs to another user (update skipped)
+    if (!result.success) {
       console.warn(`Activity ID conflict: User ${telegramId} attempted to modify activity ${activity.id}`);
-      return res.status(403).json({ error: 'Operation failed: ID conflict with another user' });
+      return res.status(403).json({ error: result.error });
     }
 
     res.json({ success: true });
@@ -232,18 +219,18 @@ export const saveCustomActivity = async (req: Request, res: Response) => {
   }
 
   try {
-    const sql = `
-      INSERT INTO custom_activities (id, telegram_id, data)
-      VALUES (?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET 
-        data = excluded.data
-      WHERE custom_activities.telegram_id = excluded.telegram_id
-    `;
-    const result = await dbAsync.run(sql, [customActivity.id, telegramId, JSON.stringify(customActivity)]);
+    const result = await upsertRecord(
+      'custom_activities',
+      ['id', 'data'],
+      [customActivity.id, JSON.stringify(customActivity)],
+      'id',
+      ['data'],
+      telegramId
+    );
 
-    if (result.changes === 0) {
+    if (!result.success) {
       console.warn(`Custom activity ID conflict: User ${telegramId} attempted to modify custom activity ${customActivity.id}`);
-      return res.status(403).json({ error: 'Operation failed: ID conflict with another user' });
+      return res.status(403).json({ error: result.error });
     }
 
     res.json({ success: true });
@@ -284,19 +271,18 @@ export const saveGrowthRecord = async (req: Request, res: Response) => {
   }
 
   try {
-    const sql = `
-      INSERT INTO growth_records (id, telegram_id, date, data)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        date = excluded.date,
-        data = excluded.data
-      WHERE growth_records.telegram_id = excluded.telegram_id
-    `;
-    const result = await dbAsync.run(sql, [record.id, telegramId, record.date, JSON.stringify(record)]);
+    const result = await upsertRecord(
+      'growth_records',
+      ['id', 'date', 'data'],
+      [record.id, record.date, JSON.stringify(record)],
+      'id',
+      ['date', 'data'],
+      telegramId
+    );
 
-    if (result.changes === 0) {
+    if (!result.success) {
       console.warn(`Growth record ID conflict: User ${telegramId} attempted to modify growth record ${record.id}`);
-      return res.status(403).json({ error: 'Operation failed: ID conflict with another user' });
+      return res.status(403).json({ error: result.error });
     }
 
     res.json({ success: true });
@@ -327,38 +313,64 @@ export const exportUserData = async (req: Request, res: Response) => {
   if (isNaN(telegramId)) return res.status(400).json({ error: 'Invalid user ID' });
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const user = await dbAsync.get<any>('SELECT * FROM users WHERE telegram_id = ?', [telegramId]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const activities = await dbAsync.all<any>('SELECT * FROM activities WHERE telegram_id = ?', [telegramId]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const customActivities = await dbAsync.all<any>('SELECT * FROM custom_activities WHERE telegram_id = ?', [telegramId]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const growthRecords = await dbAsync.all<any>('SELECT * FROM growth_records WHERE telegram_id = ?', [telegramId]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const schedules = await dbAsync.all<any>('SELECT * FROM notification_schedules WHERE user_id = ?', [telegramId]);
+    // Set headers for streaming JSON
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="babyfae_export_${telegramId}.json"`);
 
-    const exportData = {
-      version: 1,
-      timestamp: new Date().toISOString(),
-      profile: user ? safeJsonParse(user.profile_data) : null,
-      settings: user ? safeJsonParse(user.settings_data) : null,
-      activities: activities.map(a => safeJsonParse(a.data, {})),
-      customActivities: customActivities.map(ca => safeJsonParse(ca.data, {})),
-      growthRecords: growthRecords.map(g => safeJsonParse(g.data, {})),
-      schedules: schedules.map(s => ({
-        ...safeJsonParse(s.schedule_data, {}),
-        id: s.id,
-        type: s.type,
-        enabled: s.enabled,
-        next_run: s.next_run
-      }))
+    // Start JSON object
+    res.write(`{"version":1,"timestamp":"${new Date().toISOString()}"`);
+
+    // 1. Profile & Settings
+    const user = await dbAsync.get<UserRow>('SELECT * FROM users WHERE telegram_id = ?', [telegramId]);
+    res.write(`,"profile":${user ? (user.profile_data || 'null') : 'null'}`);
+    res.write(`,"settings":${user ? (user.settings_data || 'null') : 'null'}`);
+
+    // Helper to stream array
+    const streamTable = async <T>(key: string, sql: string, transform?: (row: T) => string) => {
+      res.write(`,"${key}":[`);
+      let first = true;
+      await dbAsync.each<T>(sql, [telegramId], (row) => {
+        if (!first) res.write(',');
+        first = false;
+        if (transform) {
+          res.write(transform(row));
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          res.write((row as any).data || '{}');
+        }
+      });
+      res.write(']');
     };
 
-    res.json(exportData);
+    // 2. Activities
+    await streamTable<ActivityRow>('activities', 'SELECT data FROM activities WHERE telegram_id = ?');
+
+    // 3. Custom Activities
+    await streamTable<CustomActivityRow>('customActivities', 'SELECT data FROM custom_activities WHERE telegram_id = ?');
+
+    // 4. Growth Records
+    await streamTable<GrowthRecordRow>('growthRecords', 'SELECT data FROM growth_records WHERE telegram_id = ?');
+
+    // 5. Schedules
+    await streamTable<NotificationScheduleRow>('schedules', 'SELECT * FROM notification_schedules WHERE user_id = ?', (row) => {
+      const base = safeJsonParse(row.schedule_data, {});
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const merged = { ...(base as any), id: row.id, type: row.type, enabled: !!row.enabled, next_run: row.next_run };
+      return JSON.stringify(merged);
+    });
+
+    // End JSON object
+    res.write('}');
+    res.end();
+
   } catch (err: unknown) {
     logger.error('Error exporting data', { error: err, userId: telegramId });
-    res.status(500).json({ error: 'Internal server error' });
+    // If headers are already sent, we can't send a JSON error response, but we can end the stream
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Internal server error' });
+    } else {
+      res.end();
+    }
   }
 };
 
@@ -494,74 +506,107 @@ export const importUserData = async (req: Request, res: Response) => {
 
       // 3. Import Activities
       if (Array.isArray(data.activities)) {
-        for (const act of data.activities) {
-          // Validate essential fields
-          if (act.id && act.type && act.timestamp) {
-            // Use WHERE clause to prevent overwriting if ID collides with another user's data
-            await dbAsync.run(
-              `INSERT INTO activities (id, telegram_id, type, timestamp, data) 
-               VALUES (?, ?, ?, ?, ?)
-               ON CONFLICT(id) DO UPDATE SET
-               type = excluded.type,
-               timestamp = excluded.timestamp,
-               data = excluded.data
-               WHERE activities.telegram_id = excluded.telegram_id`,
-              [act.id, telegramId, act.type, act.timestamp, JSON.stringify(act)]
-            );
-          }
+        const validActivities = data.activities.filter((a: any) => a.id && a.type && a.timestamp);
+        const CHUNK_SIZE = 50;
+        
+        for (let i = 0; i < validActivities.length; i += CHUNK_SIZE) {
+          const chunk = validActivities.slice(i, i + CHUNK_SIZE);
+          const placeholders = chunk.map(() => '(?, ?, ?, ?, ?)').join(',');
+          const params: any[] = [];
+          
+          chunk.forEach((act: any) => {
+            params.push(act.id, telegramId, act.type, act.timestamp, JSON.stringify(act));
+          });
+
+          await dbAsync.run(
+            `INSERT INTO activities (id, telegram_id, type, timestamp, data) 
+             VALUES ${placeholders}
+             ON CONFLICT(id) DO UPDATE SET
+             type = excluded.type,
+             timestamp = excluded.timestamp,
+             data = excluded.data
+             WHERE activities.telegram_id = excluded.telegram_id`,
+            params
+          );
         }
       }
 
       // 4. Import Custom Activities
       if (Array.isArray(data.customActivities)) {
-        for (const ca of data.customActivities) {
-          if (ca.id) {
-            await dbAsync.run(
-              `INSERT INTO custom_activities (id, telegram_id, data) 
-               VALUES (?, ?, ?)
-               ON CONFLICT(id) DO UPDATE SET 
-               data = excluded.data
-               WHERE custom_activities.telegram_id = excluded.telegram_id`,
-              [ca.id, telegramId, JSON.stringify(ca)]
-            );
-          }
+        const validCustom = data.customActivities.filter((ca: any) => ca.id);
+        const CHUNK_SIZE = 50;
+
+        for (let i = 0; i < validCustom.length; i += CHUNK_SIZE) {
+          const chunk = validCustom.slice(i, i + CHUNK_SIZE);
+          const placeholders = chunk.map(() => '(?, ?, ?)').join(',');
+          const params: any[] = [];
+
+          chunk.forEach((ca: any) => {
+            params.push(ca.id, telegramId, JSON.stringify(ca));
+          });
+
+          await dbAsync.run(
+            `INSERT INTO custom_activities (id, telegram_id, data) 
+             VALUES ${placeholders}
+             ON CONFLICT(id) DO UPDATE SET 
+             data = excluded.data
+             WHERE custom_activities.telegram_id = excluded.telegram_id`,
+            params
+          );
         }
       }
 
       // 5. Import Growth Records
       if (Array.isArray(data.growthRecords)) {
-        for (const gr of data.growthRecords) {
-          if (gr.id && gr.date) {
-            await dbAsync.run(
-              `INSERT INTO growth_records (id, telegram_id, date, data) 
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(id) DO UPDATE SET
-               date = excluded.date,
-               data = excluded.data
-               WHERE growth_records.telegram_id = excluded.telegram_id`,
-              [gr.id, telegramId, gr.date, JSON.stringify(gr)]
-            );
-          }
+        const validGrowth = data.growthRecords.filter((gr: any) => gr.id && gr.date);
+        const CHUNK_SIZE = 50;
+
+        for (let i = 0; i < validGrowth.length; i += CHUNK_SIZE) {
+          const chunk = validGrowth.slice(i, i + CHUNK_SIZE);
+          const placeholders = chunk.map(() => '(?, ?, ?, ?)').join(',');
+          const params: any[] = [];
+
+          chunk.forEach((gr: any) => {
+            params.push(gr.id, telegramId, gr.date, JSON.stringify(gr));
+          });
+
+          await dbAsync.run(
+            `INSERT INTO growth_records (id, telegram_id, date, data) 
+             VALUES ${placeholders}
+             ON CONFLICT(id) DO UPDATE SET
+             date = excluded.date,
+             data = excluded.data
+             WHERE growth_records.telegram_id = excluded.telegram_id`,
+            params
+          );
         }
       }
 
       // 6. Import Schedules
       if (Array.isArray(data.schedules)) {
-        for (const s of data.schedules) {
-          if (s.id && s.type) {
-             // Default next_run to now if missing, so scheduler picks it up if enabled
-             const nextRun = s.next_run || Math.floor(Date.now() / 1000);
-             await dbAsync.run(
-              `INSERT INTO notification_schedules (id, user_id, chat_id, type, schedule_data, next_run, enabled) 
-               VALUES (?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(id) DO UPDATE SET
-               schedule_data = excluded.schedule_data,
-               next_run = excluded.next_run,
-               enabled = excluded.enabled
-               WHERE notification_schedules.user_id = excluded.user_id`,
-              [s.id, telegramId, telegramId, s.type, JSON.stringify(s), nextRun, s.enabled ? 1 : 0]
-            );
-          }
+        const validSchedules = data.schedules.filter((s: any) => s.id && s.type);
+        const CHUNK_SIZE = 50;
+
+        for (let i = 0; i < validSchedules.length; i += CHUNK_SIZE) {
+          const chunk = validSchedules.slice(i, i + CHUNK_SIZE);
+          const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(',');
+          const params: any[] = [];
+
+          chunk.forEach((s: any) => {
+            const nextRun = s.next_run || Math.floor(Date.now() / 1000);
+            params.push(s.id, telegramId, telegramId, s.type, JSON.stringify(s), nextRun, s.enabled ? 1 : 0);
+          });
+
+          await dbAsync.run(
+            `INSERT INTO notification_schedules (id, user_id, chat_id, type, schedule_data, next_run, enabled) 
+             VALUES ${placeholders}
+             ON CONFLICT(id) DO UPDATE SET
+             schedule_data = excluded.schedule_data,
+             next_run = excluded.next_run,
+             enabled = excluded.enabled
+             WHERE notification_schedules.user_id = excluded.user_id`,
+            params
+          );
         }
       }
     });
@@ -632,8 +677,7 @@ export const getUserActivities = async (req: Request, res: Response) => {
     `;
     const params = before ? [telegramId, before, limit] : [telegramId, limit];
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const activities = await dbAsync.all<any>(sql, params);
+    const activities = await dbAsync.all<ActivityRow>(sql, params);
 
     res.json({
       activities: activities.map(a => ({ 

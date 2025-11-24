@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { dbAsync } from '../database/db-helper';
 import { validateUserId, validateJsonSize } from '../utils/validation';
+import { upsertRecord } from '../database/db-utils';
 
 export const updateSchedule = async (req: Request, res: Response) => {
   const { id, user_id, chat_id, type, schedule_data, next_run, enabled } = req.body;
@@ -38,25 +39,23 @@ export const updateSchedule = async (req: Request, res: Response) => {
     }
   }
 
-  const sql = `
-    INSERT INTO notification_schedules (id, user_id, chat_id, type, schedule_data, next_run, enabled)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      schedule_data = excluded.schedule_data,
-      next_run = excluded.next_run,
-      enabled = excluded.enabled
-    WHERE notification_schedules.user_id = excluded.user_id
-  `;
-
   const safeScheduleData = schedule_data ? JSON.stringify(schedule_data) : '{}';
   const safeNextRun = typeof next_run === 'number' ? next_run : Math.floor(Date.now() / 1000);
 
   try {
-    const result = await dbAsync.run(sql, [id, user_id, chat_id, type, safeScheduleData, safeNextRun, enabled ? 1 : 0]);
+    const result = await upsertRecord(
+      'notification_schedules',
+      ['id', 'chat_id', 'type', 'schedule_data', 'next_run', 'enabled'],
+      [id, chat_id, type, safeScheduleData, safeNextRun, enabled ? 1 : 0],
+      'id',
+      ['schedule_data', 'next_run', 'enabled'],
+      user_id,
+      'user_id'
+    );
     
-    if (result.changes === 0) {
+    if (!result.success) {
       console.warn(`Schedule ID conflict: User ${user_id} attempted to modify schedule ${id}`);
-      return res.status(403).json({ error: 'Operation failed: ID conflict with another user' });
+      return res.status(403).json({ error: result.error });
     }
 
     console.log(`Schedule ${id} updated for user ${user_id}`);

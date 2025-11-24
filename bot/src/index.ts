@@ -166,7 +166,7 @@ app.use('/api/', authenticateTelegramUser);
 
 // Schedule management (authenticated)
 app.post('/api/schedules/update', limiter, updateSchedule);
-app.post('/api/schedules/delete', limiter, deleteSchedule);
+app.delete('/api/schedules', limiter, deleteSchedule);
 
 // Data Sync Routes (authenticated + user verification)
 app.get('/api/user/:id', limiter, verifyUserAccess, getUserData);
@@ -174,18 +174,18 @@ app.get('/api/user/:id/activities', limiter, verifyUserAccess, getUserActivities
 app.post('/api/user/:id/profile', limiter, verifyUserAccess, saveUserProfile);
 app.post('/api/user/:id/settings', limiter, verifyUserAccess, saveUserSettings);
 app.post('/api/user/:id/activity', limiter, verifyUserAccess, saveActivity);
-app.post('/api/user/:id/activity/delete', limiter, verifyUserAccess, deleteActivity);
+app.delete('/api/user/:id/activity', limiter, verifyUserAccess, deleteActivity);
 app.post('/api/user/:id/custom-activity', limiter, verifyUserAccess, saveCustomActivity);
-app.post('/api/user/:id/custom-activity/delete', limiter, verifyUserAccess, deleteCustomActivity);
+app.delete('/api/user/:id/custom-activity', limiter, verifyUserAccess, deleteCustomActivity);
 
 app.post('/api/user/:id/growth', limiter, verifyUserAccess, saveGrowthRecord);
-app.post('/api/user/:id/growth/delete', limiter, verifyUserAccess, deleteGrowthRecord);
+app.delete('/api/user/:id/growth', limiter, verifyUserAccess, deleteGrowthRecord);
 
 // Export/Import/Delete operations (strict rate limiting)
 app.get('/api/user/:id/export', strictLimiter, verifyUserAccess, exportUserData);
 app.post('/api/user/:id/export-to-chat', backupLimiter, verifyUserAccess, exportUserDataToChat);
 app.post('/api/user/:id/import', strictLimiter, verifyUserAccess, importUserData);
-app.post('/api/user/:id/delete-all', strictLimiter, verifyUserAccess, deleteAllUserData);
+app.delete('/api/user/:id', strictLimiter, verifyUserAccess, deleteAllUserData);
 
 // Error handling middleware (must be last)
 app.use(errorLogger);

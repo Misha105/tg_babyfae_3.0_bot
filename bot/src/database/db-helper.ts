@@ -68,6 +68,26 @@ export const dbAsync = {
     });
   },
 
+  each: <T>(sql: string, params: unknown[] = [], callback: (row: T) => void): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      let count = 0;
+      db.each(sql, params, 
+        (err, row) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          callback(row as T);
+          count++;
+        },
+        (err, count) => {
+          if (err) reject(err);
+          else resolve(count);
+        }
+      );
+    });
+  },
+
   // Transaction support with proper Mutex
   transaction: async <T>(callback: () => Promise<T>): Promise<T> => {
     return dbMutex.runExclusive(async () => {

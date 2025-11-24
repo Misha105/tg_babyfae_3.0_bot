@@ -1,5 +1,5 @@
 import type { BabyProfile, Settings, ActivityRecord, CustomActivityDefinition, GrowthRecord, ImportData } from '@/types';
-import { apiGet, apiPost } from './client';
+import { apiGet, apiPost, apiDelete } from './client';
 
 export const fetchUserData = async (userId: number) => {
   return apiGet(`/api/user/${userId}`);
@@ -24,7 +24,7 @@ export const saveActivity = async (userId: number, activity: ActivityRecord) => 
 };
 
 export const deleteActivity = async (userId: number, activityId: string) => {
-  return apiPost(`/api/user/${userId}/activity/delete`, { activityId });
+  return apiDelete(`/api/user/${userId}/activity`, { activityId });
 };
 
 export const saveCustomActivity = async (userId: number, customActivity: CustomActivityDefinition) => {
@@ -32,7 +32,7 @@ export const saveCustomActivity = async (userId: number, customActivity: CustomA
 };
 
 export const deleteCustomActivity = async (userId: number, customActivityId: string) => {
-  return apiPost(`/api/user/${userId}/custom-activity/delete`, { customActivityId });
+  return apiDelete(`/api/user/${userId}/custom-activity`, { customActivityId });
 };
 
 export const saveGrowthRecord = async (userId: number, record: GrowthRecord) => {
@@ -40,7 +40,7 @@ export const saveGrowthRecord = async (userId: number, record: GrowthRecord) => 
 };
 
 export const deleteGrowthRecord = async (userId: number, recordId: string) => {
-  return apiPost(`/api/user/${userId}/growth/delete`, { recordId });
+  return apiDelete(`/api/user/${userId}/growth`, { recordId });
 };
 
 export const exportUserData = async (userId: number) => {
@@ -56,5 +56,5 @@ export const importUserData = async (userId: number, data: ImportData) => {
 };
 
 export const deleteAllUserData = async (userId: number) => {
-  return apiPost(`/api/user/${userId}/delete-all`);
+  return apiDelete(`/api/user/${userId}`);
 };
