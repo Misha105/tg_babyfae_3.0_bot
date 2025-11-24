@@ -50,14 +50,22 @@ export function validateTelegramWebAppData(initData: string, botToken: string): 
       .update(botToken)
       .digest();
     
-    // Calculate hash
+    // Calculate hash (hex-encoded HMAC as per Telegram docs)
     const calculatedHash = crypto
       .createHmac('sha256', secretKey)
       .update(dataCheckString)
       .digest('hex');
-    
-    // Timing-safe comparison
-    if (!crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(calculatedHash))) {
+
+    // Timing-safe comparison with length check to avoid runtime errors
+    // (Audit finding: ensure hash buffers have equal length before timingSafeEqual)
+    const hashBuffer = Buffer.from(hash, 'hex');
+    const calculatedBuffer = Buffer.from(calculatedHash, 'hex');
+
+    if (hashBuffer.length !== calculatedBuffer.length) {
+      return null;
+    }
+
+    if (!crypto.timingSafeEqual(hashBuffer, calculatedBuffer)) {
       return null;
     }
     

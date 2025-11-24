@@ -108,18 +108,52 @@ If you discover a security vulnerability:
 
 ## Security Checklist for Production
 
-- [ ] TELEGRAM_BOT_TOKEN is set and kept secret
-- [ ] WEBAPP_URL is configured with HTTPS
-- [ ] NODE_ENV is set to 'production'
-- [ ] Firewall is configured (UFW or iptables)
-- [ ] fail2ban is installed and configured
-- [ ] SSL certificate is valid and auto-renewing
-- [ ] Database backups are automated
-- [ ] Logs are being monitored
-- [ ] Rate limiting is enabled
-- [ ] All dependencies are up to date
-- [ ] Docker containers are running as non-root
-- [ ] Swap is configured (for low-memory VPS)
+### 1. Environment & Secrets
+
+- [ ] `.env` не в репозитории (в `.gitignore`)
+- [ ] Права на `.env` выставлены как `chmod 600 .env`
+- [ ] `TELEGRAM_BOT_TOKEN` задан и хранится только в секрете (env/secret manager)
+- [ ] `WEBAPP_URL` указывает на HTTPS-домен WebApp (например, `https://your-domain.com`)
+- [ ] `NODE_ENV` установлен в `production`
+- [ ] `ENABLE_BOT_POLLING` явно задано (`true`/`false`) для нужного процесса
+
+### 2. Хост и сеть
+
+- [ ] Включён firewall (UFW/iptables), разрешены только порты `22/tcp`, `80/tcp`, `443/tcp`
+- [ ] Установлен и настроен fail2ban
+- [ ] SSH-вход только по ключу, `PasswordAuthentication no`
+- [ ] Swap включен на VPS с 1–2 ГБ RAM (см. `DEPLOY.md`)
+
+### 3. Docker / Nginx / TLS
+
+- [ ] Docker установлен из официального репозитория (`download.docker.com`)
+- [ ] Запущены только нужные контейнеры (`babyfae-bot`, `babyfae-frontend`)
+- [ ] Порт 8080 проброшен только на `127.0.0.1` (см. `docker-compose.yml`)
+- [ ] Системный Nginx настроен как reverse-proxy к `127.0.0.1:8080`
+- [ ] Получен и автоматически продлевается SSL-сертификат (Certbot)
+- [ ] В Nginx выставлен `client_max_body_size` ≥ 20M и включён HTTPS
+
+### 4. Backend безопасности
+
+- [ ] Для всех `/api/...` маршрутов включён `authenticateTelegramUser`
+- [ ] Везде, где используется `/api/user/:id/...`, подключён `verifyUserAccess`
+- [ ] `WEBAPP_URL` задан в проде, origin-проверка в `auth.ts` включена
+- [ ] Лимиты запросов (`rateLimit`) активны для общих и чувствительных операций
+- [ ] Размер JSON‑тела ограничен (`express.json({ limit: '1mb' })`)
+
+### 5. База данных и бэкапы
+
+- [ ] SQLite-файл хранится в примонтированной папке `./data`
+- [ ] Включены регулярные бэкапы через `sqlite3 .backup` (cron-скрипт из `DEPLOY.md`)
+- [ ] Проверена процедура восстановления из бэкапа (Restore в `DEPLOY.md`)
+- [ ] При миграции на новый сервер использована инструкция Migration в `DEPLOY.md`
+
+### 6. Логи и обновления
+
+- [ ] Включён ротационный драйвер логов Docker (`max-size`, `max-file`)
+- [ ] Логи ошибок/аудита просматриваются регулярно
+- [ ] `npm audit` выполнен, критичные уязвимости исправлены
+- [ ] Образа Docker пересобираются регулярно (получение security‑апдейтов)
 
 ## Updates & Patches
 

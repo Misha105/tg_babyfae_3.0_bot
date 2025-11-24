@@ -10,13 +10,13 @@
 *   **CPU**: 1 ядро
 *   **RAM**: 1 ГБ (Обязательно настроить Swap файл 2-4 ГБ, иначе сборка может упасть по памяти)
 *   **Disk**: 15 ГБ SSD
-*   **OS**: Ubuntu 22.04 LTS / 24.04 LTS
+*   **OS**: Ubuntu 22.04/24.04 LTS или Debian 12/13
 
 ### Рекомендуемые (Production, до 10к пользователей)
 *   **CPU**: 2 ядра
 *   **RAM**: 2 ГБ
 *   **Disk**: 25 ГБ NVMe / SSD
-*   **OS**: Ubuntu 22.04 LTS / 24.04 LTS
+*   **OS**: Ubuntu 22.04/24.04 LTS или Debian 12/13
 
 ---
 
@@ -55,7 +55,9 @@
     ```
 
 3.  **Установите Docker и Docker Compose:**
-    В современных дистрибутивах (Ubuntu 22.04/24.04) рекомендуется использовать официальный репозиторий Docker.
+    *Примечание для Debian: Если команда sudo не найдена, установите её: `apt install sudo` и добавьте пользователя в группу sudo.*
+
+    Используем официальный репозиторий Docker (подходит для Ubuntu и Debian).
     ```bash
     # Удаляем старые версии, если есть
     sudo apt-get remove docker docker-engine docker.io containerd runc
@@ -66,12 +68,12 @@
 
     # Добавляем GPG ключ Docker
     sudo install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    curl -fsSL https://download.docker.com/linux/$(. /etc/os-release && echo "$ID")/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
-    # Добавляем репозиторий
+    # Добавляем репозиторий (Автоматически определяет Ubuntu или Debian)
     echo \
-      "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+      "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$(. /etc/os-release && echo "$ID") \
       "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
       sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 

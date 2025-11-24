@@ -21,9 +21,18 @@ import './database/init'; // Initialize DB
 
 dotenv.config();
 
+// In production, WEBAPP_URL is required for correct origin checks in auth middleware.
+// This guards against misconfiguration where Telegram WebApp requests could bypass origin validation.
+if (process.env.NODE_ENV === 'production' && !process.env.WEBAPP_URL) {
+  // eslint-disable-next-line no-console
+  console.error('FATAL: WEBAPP_URL must be set in production for secure Telegram WebApp authentication');
+  process.exit(1);
+}
+
 const app = express();
-// Trust only explicit proxy hops to prevent forged X-Forwarded-For addresses (audit finding #1).
-// Multiple proxies can be configured via TRUSTED_PROXIES="ip1,ip2"; fallback covers loopback/link-local ranges used in dockerised setups.
+// Trust only explicit proxy hops to prevent forged X-Forwarded-For addresses.
+// Multiple proxies can be configured via TRUSTED_PROXIES="ip1,ip2"; fallback covers loopback/link-local ranges
+// used in dockerised setups. See security audit finding for details.
 const trustedProxies = (process.env.TRUSTED_PROXIES ?? 'loopback,linklocal,uniquelocal')
   .split(',')
   .map((proxy) => proxy.trim())
@@ -32,16 +41,11 @@ app.set('trust proxy', trustedProxies);
 const port = process.env.PORT || 3000;
 
 // Security Middleware
+// Backend does not render HTML pages; CSP is primarily enforced at the frontend (Nginx) level.
+// To avoid overly permissive inline allowances while keeping responses safe, we rely on Helmet defaults
+// with a strict frameguard as per security audit recommendation.
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
-    },
-  },
+  contentSecurityPolicy: false,
   frameguard: { action: 'deny' }
 }));
 
@@ -241,4 +245,8 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled rejection', { reason, promise });
+  // Treat unhandled rejections as fatal in order to avoid running in an
+  // undefined state; this allows the process manager (Docker/systemd)
+  // to restart the service cleanly (security audit recommendation).
+  shutdown('unhandledRejection');
 });
