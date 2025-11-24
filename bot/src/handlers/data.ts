@@ -7,8 +7,7 @@ import {
   validateCustomActivity, 
   validateGrowthRecord,
   validateProfile,
-  validateSettings,
-  sanitizeString
+  validateSettings
 } from '../utils/validation';
 import { logger } from '../utils/logger';
 
@@ -35,10 +34,15 @@ export const getUserData = async (req: Request, res: Response) => {
 
   try {
     // Use Promise.all for parallel queries (performance optimization)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [user, activities, customActivities, growthRecords] = await Promise.all([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       dbAsync.get<any>('SELECT * FROM users WHERE telegram_id = ?', [telegramId]),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       dbAsync.all<any>('SELECT * FROM activities WHERE telegram_id = ? ORDER BY timestamp DESC', [telegramId]),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       dbAsync.all<any>('SELECT * FROM custom_activities WHERE telegram_id = ?', [telegramId]),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       dbAsync.all<any>('SELECT * FROM growth_records WHERE telegram_id = ? ORDER BY date DESC', [telegramId])
     ]);
 
@@ -304,10 +308,15 @@ export const exportUserData = async (req: Request, res: Response) => {
   if (isNaN(telegramId)) return res.status(400).json({ error: 'Invalid user ID' });
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const user = await dbAsync.get<any>('SELECT * FROM users WHERE telegram_id = ?', [telegramId]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const activities = await dbAsync.all<any>('SELECT * FROM activities WHERE telegram_id = ?', [telegramId]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const customActivities = await dbAsync.all<any>('SELECT * FROM custom_activities WHERE telegram_id = ?', [telegramId]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const growthRecords = await dbAsync.all<any>('SELECT * FROM growth_records WHERE telegram_id = ?', [telegramId]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const schedules = await dbAsync.all<any>('SELECT * FROM notification_schedules WHERE user_id = ?', [telegramId]);
 
     const exportData = {

@@ -1,5 +1,4 @@
 import express from 'express';
-import TelegramBot from 'node-telegram-bot-api';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -139,7 +138,7 @@ if (bot && shouldRunBot) {
 }
 
 // Health check endpoint (no auth required)
-app.get('/health', async (req, res) => {
+app.get('/health', async (_req, res) => {
   try {
     const { dbAsync } = await import('./database/db-helper');
     await dbAsync.get('SELECT 1');

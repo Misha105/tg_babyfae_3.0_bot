@@ -23,6 +23,7 @@ if (token) {
                 keepAlive: true,
                 family: 4
             }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any
     });
 

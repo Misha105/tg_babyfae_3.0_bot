@@ -17,6 +17,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 
   // Capture response
   const originalSend = res.send;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   res.send = function(data: any): Response {
     const duration = Date.now() - startTime;
     
@@ -41,7 +42,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
 /**
  * Middleware for logging errors
  */
-export function errorLogger(err: Error, req: Request, res: Response, next: NextFunction) {
+export function errorLogger(err: Error, req: Request, res: Response, _next: NextFunction) {
   logger.error('Unhandled error', {
     error: err,
     message: err.message,

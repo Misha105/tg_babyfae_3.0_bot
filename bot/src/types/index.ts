@@ -16,6 +16,7 @@ export interface ActivityRecord {
   endTimestamp?: string; // ISO8601
   subType?: string;
   notes?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata?: Record<string, any>;
 }
 

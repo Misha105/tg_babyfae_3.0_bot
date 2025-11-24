@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const locales: Record<string, any> = {
   en: {
     welcome: '<b>Welcome to BabyFae!</b> 🍼\n\nI help you track your baby\'s sleep, feeding, and activities.\n\nClick the button below to open the app and start tracking!',
