@@ -220,7 +220,7 @@ export const SettingsScreen: React.FC = () => {
           enabled: true
         });
       } else {
-        await deleteSchedule('feeding-reminder');
+        await deleteSchedule('feeding-reminder', userId);
       }
     } catch (error) {
       console.error('Failed to sync notifications, adding to queue', error);
@@ -236,7 +236,7 @@ export const SettingsScreen: React.FC = () => {
           enabled: true
         });
       } else {
-        addToQueue('delete', { id: 'feeding-reminder' });
+        addToQueue('delete', { id: 'feeding-reminder', user_id: userId });
       }
     }
   };

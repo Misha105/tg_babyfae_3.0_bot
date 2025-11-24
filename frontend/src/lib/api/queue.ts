@@ -42,7 +42,7 @@ export const processQueue = async () => {
           await syncSchedule(p);
           break;
         case 'delete':
-          await deleteSchedule(p.id);
+          await deleteSchedule(p.id, p.user_id);
           break;
         case 'saveActivity':
           await saveActivity(p.userId, p.activity);

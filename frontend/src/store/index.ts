@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { ActivityRecord, CustomActivityDefinition, GrowthRecord, ImportData } from '@/types';
+import type { ActivityRecord, CustomActivityDefinition, GrowthRecord, ImportData, BabyProfile, UserDataResponse } from '@/types';
 import { createProfileSlice, type ProfileSlice } from './slices/createProfileSlice';
 import { createActivitySlice, type ActivitySlice } from './slices/createActivitySlice';
 import { createSettingsSlice, type SettingsSlice } from './slices/createSettingsSlice';
@@ -39,14 +39,31 @@ export const useStore = create<AppState>()(
            throw new Error('Backup file appears to be empty or invalid');
         }
 
-        set((state) => ({
-          ...state,
-          profile: data.profile || state.profile,
-          settings: { ...state.settings, ...data.settings },
-          activities: Array.isArray(data.activities) ? data.activities : state.activities,
-          customActivities: Array.isArray(data.customActivities) ? data.customActivities : state.customActivities,
-          growthRecords: Array.isArray(data.growthRecords) ? data.growthRecords : state.growthRecords,
-        }));
+        set((state) => {
+          const newState: Partial<AppState> = {};
+          
+          if (data.profile) {
+            newState.profile = data.profile as BabyProfile;
+          }
+          
+          if (data.settings) {
+            newState.settings = { ...state.settings, ...data.settings };
+          }
+          
+          if (Array.isArray(data.activities)) {
+            newState.activities = data.activities;
+          }
+          
+          if (Array.isArray(data.customActivities)) {
+            newState.customActivities = data.customActivities;
+          }
+          
+          if (Array.isArray(data.growthRecords)) {
+            newState.growthRecords = data.growthRecords;
+          }
+          
+          return newState;
+        });
         
         console.log('Data imported successfully to local store');
       },
@@ -84,17 +101,17 @@ export const useStore = create<AppState>()(
           await processQueue();
 
           // 2. Fetch latest data from server
-          const data = await fetchUserData(userId);
+          const data = await fetchUserData(userId) as UserDataResponse;
           
           // Profile and Settings: Server is truth, but if local has changes that failed to sync?
           // For now, let's assume server wins for profile/settings as they are less frequent.
-          if (data.profile) set({ profile: data.profile });
-          if (data.settings) set({ settings: data.settings });
+          if (data?.profile) set({ profile: data.profile });
+          if (data?.settings) set({ settings: data.settings });
           
           // Activities: Merge Strategy
           // 1. Keep local activities that are NOT on the server (potential unsynced data)
           // 2. Update/Add activities from the server (server is truth for what it has)
-          if (data.activities && Array.isArray(data.activities)) {
+          if (data?.activities && Array.isArray(data.activities)) {
             const currentActivities = get().activities || [];
             const serverActivitiesMap = new Map((data.activities as ActivityRecord[]).map(a => [a.id, a]));
             
@@ -115,7 +132,7 @@ export const useStore = create<AppState>()(
           }
 
           // Custom Activities: Same merge strategy
-          if (data.customActivities && Array.isArray(data.customActivities)) {
+          if (data?.customActivities && Array.isArray(data.customActivities)) {
              const currentCustom = get().customActivities || [];
              const serverCustomMap = new Map((data.customActivities as CustomActivityDefinition[]).map(c => [c.id, c]));
              const mergedCustom = [...(data.customActivities as CustomActivityDefinition[])];
@@ -129,7 +146,7 @@ export const useStore = create<AppState>()(
           }
 
           // Growth Records: Merge Strategy
-          if (data.growthRecords && Array.isArray(data.growthRecords)) {
+          if (data?.growthRecords && Array.isArray(data.growthRecords)) {
              const currentGrowth = get().growthRecords || [];
              const serverGrowthMap = new Map((data.growthRecords as GrowthRecord[]).map(g => [g.id, g]));
              const mergedGrowth = [...(data.growthRecords as GrowthRecord[])];

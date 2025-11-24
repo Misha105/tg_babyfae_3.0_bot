@@ -75,3 +75,11 @@ export interface ImportData {
   growthRecords?: GrowthRecord[];
   schedules?: NotificationSchedule[];
 }
+
+export interface UserDataResponse {
+  profile: BabyProfile | null;
+  settings: Settings | null;
+  activities: ActivityRecord[];
+  customActivities: CustomActivityDefinition[];
+  growthRecords: GrowthRecord[];
+}

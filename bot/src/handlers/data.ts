@@ -1,6 +1,15 @@
 import { Request, Response } from 'express';
 import { dbAsync } from '../database/db-helper';
 import bot from '../telegram';
+import { 
+  validateUserId, 
+  validateActivity, 
+  validateCustomActivity, 
+  validateGrowthRecord,
+  validateProfile,
+  validateSettings,
+  sanitizeString
+} from '../utils/validation';
 
 // Helper for error logging
 const logError = (context: string, err: unknown) => {
@@ -12,10 +21,10 @@ const logError = (context: string, err: unknown) => {
 };
 
 // Safe JSON parse helper
-const safeJsonParse = (data: string | null, fallback: any = null) => {
+const safeJsonParse = <T = unknown>(data: string | null, fallback: T | null = null): T | null => {
   if (!data) return fallback;
   try {
-    return JSON.parse(data);
+    return JSON.parse(data) as T;
   } catch (e) {
     console.error('JSON Parse Error:', e);
     return fallback;
@@ -26,14 +35,20 @@ const safeJsonParse = (data: string | null, fallback: any = null) => {
 
 export const getUserData = async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.id);
-  if (isNaN(telegramId)) return res.status(400).json({ error: 'Invalid user ID' });
+  
+  const validation = validateUserId(telegramId);
+  if (!validation.valid) {
+    return res.status(400).json({ error: validation.error });
+  }
 
   try {
-    const user = await dbAsync.get<any>('SELECT * FROM users WHERE telegram_id = ?', [telegramId]);
-    // Order by timestamp DESC to get latest first, though frontend handles sorting too.
-    const activities = await dbAsync.all<any>('SELECT * FROM activities WHERE telegram_id = ? ORDER BY timestamp DESC', [telegramId]);
-    const customActivities = await dbAsync.all<any>('SELECT * FROM custom_activities WHERE telegram_id = ?', [telegramId]);
-    const growthRecords = await dbAsync.all<any>('SELECT * FROM growth_records WHERE telegram_id = ? ORDER BY date DESC', [telegramId]);
+    // Use Promise.all for parallel queries (performance optimization)
+    const [user, activities, customActivities, growthRecords] = await Promise.all([
+      dbAsync.get<any>('SELECT * FROM users WHERE telegram_id = ?', [telegramId]),
+      dbAsync.all<any>('SELECT * FROM activities WHERE telegram_id = ? ORDER BY timestamp DESC', [telegramId]),
+      dbAsync.all<any>('SELECT * FROM custom_activities WHERE telegram_id = ?', [telegramId]),
+      dbAsync.all<any>('SELECT * FROM growth_records WHERE telegram_id = ? ORDER BY date DESC', [telegramId])
+    ]);
 
     res.json({
       profile: user ? safeJsonParse(user.profile_data) : null,
@@ -51,7 +66,20 @@ export const getUserData = async (req: Request, res: Response) => {
 export const saveUserProfile = async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.id);
   const { profile } = req.body;
-  if (isNaN(telegramId) || !profile) return res.status(400).json({ error: 'Invalid data' });
+  
+  const userIdValidation = validateUserId(telegramId);
+  if (!userIdValidation.valid) {
+    return res.status(400).json({ error: userIdValidation.error });
+  }
+  
+  if (!profile) {
+    return res.status(400).json({ error: 'Profile data is required' });
+  }
+  
+  const profileValidation = validateProfile(profile);
+  if (!profileValidation.valid) {
+    return res.status(400).json({ error: profileValidation.error });
+  }
 
   try {
     const sql = `
@@ -60,6 +88,7 @@ export const saveUserProfile = async (req: Request, res: Response) => {
       ON CONFLICT(telegram_id) DO UPDATE SET profile_data = excluded.profile_data
     `;
     await dbAsync.run(sql, [telegramId, JSON.stringify(profile)]);
+    console.log(`Profile saved for user ${telegramId}`);
     res.json({ success: true });
   } catch (err: unknown) {
     logError('Error saving profile', err);
@@ -70,7 +99,20 @@ export const saveUserProfile = async (req: Request, res: Response) => {
 export const saveUserSettings = async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.id);
   const { settings } = req.body;
-  if (isNaN(telegramId) || !settings) return res.status(400).json({ error: 'Invalid data' });
+  
+  const userIdValidation = validateUserId(telegramId);
+  if (!userIdValidation.valid) {
+    return res.status(400).json({ error: userIdValidation.error });
+  }
+  
+  if (!settings) {
+    return res.status(400).json({ error: 'Settings data is required' });
+  }
+  
+  const settingsValidation = validateSettings(settings);
+  if (!settingsValidation.valid) {
+    return res.status(400).json({ error: settingsValidation.error });
+  }
 
   try {
     const sql = `
@@ -79,6 +121,7 @@ export const saveUserSettings = async (req: Request, res: Response) => {
       ON CONFLICT(telegram_id) DO UPDATE SET settings_data = excluded.settings_data
     `;
     await dbAsync.run(sql, [telegramId, JSON.stringify(settings)]);
+    console.log(`Settings saved for user ${telegramId}`);
     res.json({ success: true });
   } catch (err: unknown) {
     logError('Error saving settings', err);
@@ -90,8 +133,17 @@ export const saveUserSettings = async (req: Request, res: Response) => {
 
 export const saveActivity = async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.id);
-  const activity = req.body; // Expects full activity object
-  if (isNaN(telegramId) || !activity || !activity.id) return res.status(400).json({ error: 'Invalid data' });
+  const activity = req.body;
+  
+  const userIdValidation = validateUserId(telegramId);
+  if (!userIdValidation.valid) {
+    return res.status(400).json({ error: userIdValidation.error });
+  }
+  
+  const activityValidation = validateActivity(activity);
+  if (!activityValidation.valid) {
+    return res.status(400).json({ error: activityValidation.error });
+  }
 
   try {
     // Use WHERE clause in ON CONFLICT to prevent overwriting other users' data if ID collides
@@ -114,6 +166,7 @@ export const saveActivity = async (req: Request, res: Response) => {
 
     if (result.changes === 0) {
       // If changes is 0, it means the ID exists but belongs to another user (update skipped)
+      console.warn(`Activity ID conflict: User ${telegramId} attempted to modify activity ${activity.id}`);
       return res.status(403).json({ error: 'Operation failed: ID conflict with another user' });
     }
 
@@ -127,10 +180,19 @@ export const saveActivity = async (req: Request, res: Response) => {
 export const deleteActivity = async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.id);
   const { activityId } = req.body;
-  if (isNaN(telegramId) || !activityId) return res.status(400).json({ error: 'Invalid data' });
+  
+  const userIdValidation = validateUserId(telegramId);
+  if (!userIdValidation.valid) {
+    return res.status(400).json({ error: userIdValidation.error });
+  }
+  
+  if (!activityId || typeof activityId !== 'string') {
+    return res.status(400).json({ error: 'Activity ID is required and must be a string' });
+  }
 
   try {
-    await dbAsync.run('DELETE FROM activities WHERE id = ? AND telegram_id = ?', [activityId, telegramId]);
+    const result = await dbAsync.run('DELETE FROM activities WHERE id = ? AND telegram_id = ?', [activityId, telegramId]);
+    console.log(`Activity ${activityId} deleted for user ${telegramId}, rows affected: ${result.changes}`);
     res.json({ success: true });
   } catch (err: unknown) {
     logError('Error deleting activity', err);
@@ -143,7 +205,16 @@ export const deleteActivity = async (req: Request, res: Response) => {
 export const saveCustomActivity = async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.id);
   const customActivity = req.body;
-  if (isNaN(telegramId) || !customActivity || !customActivity.id) return res.status(400).json({ error: 'Invalid data' });
+  
+  const userIdValidation = validateUserId(telegramId);
+  if (!userIdValidation.valid) {
+    return res.status(400).json({ error: userIdValidation.error });
+  }
+  
+  const customActivityValidation = validateCustomActivity(customActivity);
+  if (!customActivityValidation.valid) {
+    return res.status(400).json({ error: customActivityValidation.error });
+  }
 
   try {
     const sql = `
@@ -156,6 +227,7 @@ export const saveCustomActivity = async (req: Request, res: Response) => {
     const result = await dbAsync.run(sql, [customActivity.id, telegramId, JSON.stringify(customActivity)]);
 
     if (result.changes === 0) {
+      console.warn(`Custom activity ID conflict: User ${telegramId} attempted to modify custom activity ${customActivity.id}`);
       return res.status(403).json({ error: 'Operation failed: ID conflict with another user' });
     }
 
@@ -185,7 +257,16 @@ export const deleteCustomActivity = async (req: Request, res: Response) => {
 export const saveGrowthRecord = async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.id);
   const record = req.body;
-  if (isNaN(telegramId) || !record || !record.id) return res.status(400).json({ error: 'Invalid data' });
+  
+  const userIdValidation = validateUserId(telegramId);
+  if (!userIdValidation.valid) {
+    return res.status(400).json({ error: userIdValidation.error });
+  }
+  
+  const recordValidation = validateGrowthRecord(record);
+  if (!recordValidation.valid) {
+    return res.status(400).json({ error: recordValidation.error });
+  }
 
   try {
     const sql = `
@@ -199,6 +280,7 @@ export const saveGrowthRecord = async (req: Request, res: Response) => {
     const result = await dbAsync.run(sql, [record.id, telegramId, record.date, JSON.stringify(record)]);
 
     if (result.changes === 0) {
+      console.warn(`Growth record ID conflict: User ${telegramId} attempted to modify growth record ${record.id}`);
       return res.status(403).json({ error: 'Operation failed: ID conflict with another user' });
     }
 
@@ -403,21 +485,32 @@ export const importUserData = async (req: Request, res: Response) => {
 
 export const deleteAllUserData = async (req: Request, res: Response) => {
   const telegramId = parseInt(req.params.id);
-  if (isNaN(telegramId)) return res.status(400).json({ error: 'Invalid user ID' });
+  
+  const userIdValidation = validateUserId(telegramId);
+  if (!userIdValidation.valid) {
+    return res.status(400).json({ error: userIdValidation.error });
+  }
 
   try {
+    console.log(`[AUDIT] User ${telegramId} initiated complete data deletion at ${new Date().toISOString()}`);
+    
     await dbAsync.transaction(async () => {
       // Execute deletions in a transaction
-      await dbAsync.run('DELETE FROM activities WHERE telegram_id = ?', [telegramId]);
-      await dbAsync.run('DELETE FROM custom_activities WHERE telegram_id = ?', [telegramId]);
-      await dbAsync.run('DELETE FROM growth_records WHERE telegram_id = ?', [telegramId]);
-      await dbAsync.run('DELETE FROM notification_schedules WHERE user_id = ?', [telegramId]);
-      await dbAsync.run('DELETE FROM users WHERE telegram_id = ?', [telegramId]);
+      const results = await Promise.all([
+        dbAsync.run('DELETE FROM activities WHERE telegram_id = ?', [telegramId]),
+        dbAsync.run('DELETE FROM custom_activities WHERE telegram_id = ?', [telegramId]),
+        dbAsync.run('DELETE FROM growth_records WHERE telegram_id = ?', [telegramId]),
+        dbAsync.run('DELETE FROM notification_schedules WHERE user_id = ?', [telegramId]),
+        dbAsync.run('DELETE FROM users WHERE telegram_id = ?', [telegramId])
+      ]);
+      
+      const totalDeleted = results.reduce((sum, r) => sum + (r.changes || 0), 0);
+      console.log(`[AUDIT] User ${telegramId} data deletion completed: ${totalDeleted} records deleted`);
     });
 
-    console.log(`All data deleted for user ${telegramId}`);
     res.json({ success: true });
   } catch (err: unknown) {
+    console.error(`[AUDIT] User ${telegramId} data deletion FAILED:`, err);
     logError('Error deleting all user data', err);
     res.status(500).json({ error: 'Internal server error' });
   }
