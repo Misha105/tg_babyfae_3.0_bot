@@ -18,6 +18,9 @@ export const CalendarView: React.FC = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn }));
   const [isMonthViewOpen, setIsMonthViewOpen] = useState(false);
   const activities = useStore((state) => state.activities);
+  const loadMoreActivities = useStore((state) => state.loadMoreActivities);
+  const isLoadingMore = useStore((state) => state.isLoadingMore);
+  const hasMoreHistory = useStore((state) => state.hasMoreHistory);
 
   // Update week start when locale changes
   React.useEffect(() => {
@@ -236,6 +239,18 @@ export const CalendarView: React.FC = () => {
           </h3>
           <DailyActivityList activities={selectedActivities} />
         </div>
+
+        {hasMoreHistory && (
+          <div className="flex justify-center pt-2">
+            <button
+              onClick={() => loadMoreActivities(100)}
+              disabled={isLoadingMore}
+              className="px-6 py-3 text-sm font-medium text-slate-400 hover:text-white bg-slate-800/30 hover:bg-slate-800/50 rounded-xl transition-colors disabled:opacity-50"
+            >
+              {isLoadingMore ? t('common.loading', 'Loading...') : t('calendar.load_more_history', 'Load older history')}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

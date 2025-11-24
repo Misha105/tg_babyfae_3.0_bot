@@ -4,6 +4,7 @@ import { useStore } from '@/store';
 import type { BabyProfile } from '@/types';
 import { Baby, Calendar, User, ChevronRight, Sparkles } from 'lucide-react';
 import { createDateFromInput } from '@/lib/dateUtils';
+import { v4 as uuidv4 } from 'uuid';
 
 export const OnboardingScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -48,7 +49,7 @@ export const OnboardingScreen: React.FC = () => {
     }
 
     const newProfile: BabyProfile = {
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       name: trimmedName,
       gender,
       birthDate: date.toISOString(),

@@ -5,6 +5,13 @@ export const fetchUserData = async (userId: number) => {
   return apiGet(`/api/user/${userId}`);
 };
 
+export const fetchActivities = async (userId: number, limit: number = 50, before?: string) => {
+  const params = new URLSearchParams({ limit: limit.toString() });
+  if (before) params.append('before', before);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return apiGet<{ activities: ActivityRecord[] }>(`/api/user/${userId}/activities?${params.toString()}`);
+};
+
 export const saveUserProfile = async (userId: number, profile: Partial<BabyProfile>) => {
   return apiPost(`/api/user/${userId}/profile`, { profile });
 };

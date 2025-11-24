@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { updateSchedule, deleteSchedule } from './handlers/api';
 import { 
-    getUserData, saveUserProfile, saveUserSettings, 
+    getUserData, getUserActivities, saveUserProfile, saveUserSettings, 
     saveActivity, deleteActivity, 
     saveCustomActivity, deleteCustomActivity, 
     saveGrowthRecord, deleteGrowthRecord,
@@ -166,6 +166,7 @@ app.post('/api/schedules/delete', limiter, deleteSchedule);
 
 // Data Sync Routes (authenticated + user verification)
 app.get('/api/user/:id', limiter, verifyUserAccess, getUserData);
+app.get('/api/user/:id/activities', limiter, verifyUserAccess, getUserActivities);
 app.post('/api/user/:id/profile', limiter, verifyUserAccess, saveUserProfile);
 app.post('/api/user/:id/settings', limiter, verifyUserAccess, saveUserSettings);
 app.post('/api/user/:id/activity', limiter, verifyUserAccess, saveActivity);

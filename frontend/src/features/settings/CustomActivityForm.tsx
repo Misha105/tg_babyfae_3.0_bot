@@ -3,6 +3,7 @@ import { useStore } from '@/store';
 import { Star, Heart, Sun, Cloud, Music, Book, Bath, Utensils } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { CustomActivityDefinition } from '@/types';
+import { v4 as uuidv4 } from 'uuid';
 
 interface CustomActivityFormProps {
   onClose: () => void;
@@ -48,7 +49,7 @@ export const CustomActivityForm: React.FC<CustomActivityFormProps> = ({ onClose 
     }
 
     const newActivity: CustomActivityDefinition = {
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       name: trimmedName,
       icon: selectedIcon,
       color: selectedColor,

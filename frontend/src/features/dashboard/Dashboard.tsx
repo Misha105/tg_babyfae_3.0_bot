@@ -10,6 +10,7 @@ import { useSleepTimer } from '@/hooks/useSleepTimer';
 import { ActivityInputModal } from '@/components/ActivityInputModal';
 import { CustomActivityForm } from '../settings/CustomActivityForm';
 import { SleepStartModal } from '@/components/SleepStartModal';
+import { v4 as uuidv4 } from 'uuid';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   star: Star,
@@ -63,7 +64,7 @@ export const Dashboard: React.FC = () => {
         // End sleep
         const now = new Date().toISOString();
         const newActivity: ActivityRecord = {
-          id: crypto.randomUUID(),
+          id: uuidv4(),
           type: 'sleep',
           timestamp: sleepStartTime!,
           endTimestamp: now,
@@ -83,7 +84,7 @@ export const Dashboard: React.FC = () => {
     }
 
     const newActivity: ActivityRecord = {
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       type,
       timestamp: new Date().toISOString(),
     };
@@ -92,7 +93,7 @@ export const Dashboard: React.FC = () => {
 
   const handleCustomActivity = (activityDef: CustomActivityDefinition) => {
     const newActivity: ActivityRecord = {
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       type: 'custom',
       subType: activityDef.name,
       timestamp: new Date().toISOString(),
@@ -101,11 +102,11 @@ export const Dashboard: React.FC = () => {
     addActivity(newActivity);
   };
 
-  const handleModalSave = (data: Partial<ActivityRecord>) => {
+  const handleActivitySave = (data: Partial<ActivityRecord>) => {
     if (!activeModal) return;
 
     const newActivity: ActivityRecord = {
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       type: activeModal,
       timestamp: new Date().toISOString(),
       ...data,

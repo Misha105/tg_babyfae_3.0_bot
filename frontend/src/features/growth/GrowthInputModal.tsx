@@ -5,6 +5,7 @@ import { useStore } from '@/store';
 import type { GrowthRecord } from '@/types';
 import { format, differenceInDays } from 'date-fns';
 import { createDateFromInput } from '@/lib/dateUtils';
+import { v4 as uuidv4 } from 'uuid';
 
 interface GrowthInputModalProps {
   initialData?: GrowthRecord;
@@ -92,7 +93,7 @@ export const GrowthInputModal: React.FC<GrowthInputModalProps> = ({ initialData,
       });
     } else {
       const newRecord: GrowthRecord = {
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         date: recordDate.toISOString(),
         weight: weightVal,
         weightUnit: 'g', // Store in grams by default for new records

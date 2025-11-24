@@ -32,14 +32,27 @@ export const getUserData = async (req: Request, res: Response) => {
     return res.status(400).json({ error: validation.error });
   }
 
+  // Pagination for activities
+  const limit = Math.min(parseInt(req.query.limit as string) || 500, 1000); // Default 500, max 1000
+  const before = req.query.before as string;
+
   try {
+    const activitiesSql = `
+      SELECT * FROM activities 
+      WHERE telegram_id = ? 
+      ${before ? 'AND timestamp < ?' : ''}
+      ORDER BY timestamp DESC 
+      LIMIT ?
+    `;
+    const activitiesParams = before ? [telegramId, before, limit] : [telegramId, limit];
+
     // Use Promise.all for parallel queries (performance optimization)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [user, activities, customActivities, growthRecords] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       dbAsync.get<any>('SELECT * FROM users WHERE telegram_id = ?', [telegramId]),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dbAsync.all<any>('SELECT * FROM activities WHERE telegram_id = ? ORDER BY timestamp DESC', [telegramId]),
+      dbAsync.all<any>(activitiesSql, activitiesParams),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       dbAsync.all<any>('SELECT * FROM custom_activities WHERE telegram_id = ?', [telegramId]),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -517,10 +530,45 @@ export const deleteAllUserData = async (req: Request, res: Response) => {
 
     res.json({ success: true });
   } catch (err: unknown) {
-    logger.error('User data deletion failed', {
-      error: err,
-      userId: telegramId
+    logger.error('Error deleting all user data', { error: err, userId: telegramId });
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getUserActivities = async (req: Request, res: Response) => {
+  const telegramId = parseInt(req.params.id);
+  
+  const validation = validateUserId(telegramId);
+  if (!validation.valid) {
+    return res.status(400).json({ error: validation.error });
+  }
+
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 1000);
+  const before = req.query.before as string;
+
+  try {
+    const sql = `
+      SELECT * FROM activities 
+      WHERE telegram_id = ? 
+      ${before ? 'AND timestamp < ?' : ''}
+      ORDER BY timestamp DESC 
+      LIMIT ?
+    `;
+    const params = before ? [telegramId, before, limit] : [telegramId, limit];
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const activities = await dbAsync.all<any>(sql, params);
+
+    res.json({
+      activities: activities.map(a => ({ 
+        ...safeJsonParse(a.data, {}), 
+        id: a.id, 
+        type: a.type, 
+        timestamp: a.timestamp 
+      }))
     });
+  } catch (err: unknown) {
+    logger.error('Error fetching user activities', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
