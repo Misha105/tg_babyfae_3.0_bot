@@ -1,0 +1,259 @@
+openapi: 3.0.3
+info:
+  title: Babyfae API
+  description: API for Babyfae baby care tracking application
+  version: 3.0.0
+  contact:
+    name: Babyfae Support
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://your-domain.com
+    description: Production server
+
+security:
+  - TelegramAuth: []
+
+components:
+  securitySchemes:
+    TelegramAuth:
+      type: apiKey
+      in: header
+      name: X-Telegram-Init-Data
+      description: Telegram WebApp initData for authentication
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      required:
+        - error
+
+    BabyProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 2
+          maxLength: 50
+        gender:
+          type: string
+          enum: [male, female]
+        birthDate:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ActivityRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [feeding, water, medication, sleep, custom, diaper, pump, bath, walk, play, doctor, other]
+        timestamp:
+          type: string
+          format: date-time
+        endTimestamp:
+          type: string
+          format: date-time
+        notes:
+          type: string
+          maxLength: 300
+        amount:
+          type: number
+          minimum: 0
+          maximum: 10000
+        unit:
+          type: string
+        medicationName:
+          type: string
+          maxLength: 50
+
+    GrowthRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date-time
+        weight:
+          type: number
+          minimum: 0
+          maximum: 50000
+        weightUnit:
+          type: string
+          enum: [kg, lb, g]
+        height:
+          type: number
+          minimum: 0
+          maximum: 200
+        heightUnit:
+          type: string
+          enum: [cm, in]
+        ageInDays:
+          type: integer
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check if the server is running and database is connected
+      security: []
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  uptime:
+                    type: number
+                  database:
+                    type: string
+                    example: connected
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/user/{id}:
+    get:
+      summary: Get user data
+      description: Retrieve all data for a specific user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Telegram user ID
+      responses:
+        '200':
+          description: User data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  profile:
+                    $ref: '#/components/schemas/BabyProfile'
+                  settings:
+                    type: object
+                  activities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ActivityRecord'
+                  customActivities:
+                    type: array
+                  growthRecords:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GrowthRecord'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - User can only access their own data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/user/{id}/profile:
+    post:
+      summary: Save user profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                profile:
+                  $ref: '#/components/schemas/BabyProfile'
+      responses:
+        '200':
+          description: Profile saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /api/user/{id}/activity:
+    post:
+      summary: Save activity
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityRecord'
+      responses:
+        '200':
+          description: Activity saved successfully
+        '400':
+          description: Invalid data
+        '403':
+          description: ID conflict with another user
+
+  /api/user/{id}/delete-all:
+    post:
+      summary: Delete all user data
+      description: Permanently delete all data for the user (GDPR compliance)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: All data deleted successfully
+        '429':
+          description: Rate limit exceeded
+
+tags:
+  - name: User Data
+    description: User profile and data management
+  - name: Activities
+    description: Activity tracking
+  - name: Growth
+    description: Growth records

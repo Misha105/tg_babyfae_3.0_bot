@@ -10,15 +10,7 @@ import {
   validateSettings,
   sanitizeString
 } from '../utils/validation';
-
-// Helper for error logging
-const logError = (context: string, err: unknown) => {
-  if (err instanceof Error) {
-    console.error(`${context}:`, err.message);
-  } else {
-    console.error(`${context}:`, err);
-  }
-};
+import { logger } from '../utils/logger';
 
 // Safe JSON parse helper
 const safeJsonParse = <T = unknown>(data: string | null, fallback: T | null = null): T | null => {
@@ -58,7 +50,7 @@ export const getUserData = async (req: Request, res: Response) => {
       growthRecords: growthRecords.map(g => safeJsonParse(g.data, {}))
     });
   } catch (err: unknown) {
-    logError('Error fetching user data', err);
+    logger.error('Error fetching user data', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -91,7 +83,7 @@ export const saveUserProfile = async (req: Request, res: Response) => {
     console.log(`Profile saved for user ${telegramId}`);
     res.json({ success: true });
   } catch (err: unknown) {
-    logError('Error saving profile', err);
+    logger.error('Error saving profile', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -124,7 +116,7 @@ export const saveUserSettings = async (req: Request, res: Response) => {
     console.log(`Settings saved for user ${telegramId}`);
     res.json({ success: true });
   } catch (err: unknown) {
-    logError('Error saving settings', err);
+    logger.error('Error saving settings', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -172,7 +164,7 @@ export const saveActivity = async (req: Request, res: Response) => {
 
     res.json({ success: true });
   } catch (err: unknown) {
-    logError('Error saving activity', err);
+    logger.error('Error saving activity', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -195,7 +187,7 @@ export const deleteActivity = async (req: Request, res: Response) => {
     console.log(`Activity ${activityId} deleted for user ${telegramId}, rows affected: ${result.changes}`);
     res.json({ success: true });
   } catch (err: unknown) {
-    logError('Error deleting activity', err);
+    logger.error('Error deleting activity', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -233,7 +225,7 @@ export const saveCustomActivity = async (req: Request, res: Response) => {
 
     res.json({ success: true });
   } catch (err: unknown) {
-    logError('Error saving custom activity', err);
+    logger.error('Error saving custom activity', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -247,7 +239,7 @@ export const deleteCustomActivity = async (req: Request, res: Response) => {
     await dbAsync.run('DELETE FROM custom_activities WHERE id = ? AND telegram_id = ?', [customActivityId, telegramId]);
     res.json({ success: true });
   } catch (err: unknown) {
-    logError('Error deleting custom activity', err);
+    logger.error('Error deleting custom activity', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -286,7 +278,7 @@ export const saveGrowthRecord = async (req: Request, res: Response) => {
 
     res.json({ success: true });
   } catch (err: unknown) {
-    logError('Error saving growth record', err);
+    logger.error('Error saving growth record', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -300,7 +292,7 @@ export const deleteGrowthRecord = async (req: Request, res: Response) => {
     await dbAsync.run('DELETE FROM growth_records WHERE id = ? AND telegram_id = ?', [recordId, telegramId]);
     res.json({ success: true });
   } catch (err: unknown) {
-    logError('Error deleting growth record', err);
+    logger.error('Error deleting growth record', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -337,7 +329,7 @@ export const exportUserData = async (req: Request, res: Response) => {
 
     res.json(exportData);
   } catch (err: unknown) {
-    logError('Error exporting data', err);
+    logger.error('Error exporting data', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -366,7 +358,7 @@ export const exportUserDataToChat = async (req: Request, res: Response) => {
 
     res.json({ success: true, message: t.backup_sent });
   } catch (err: unknown) {
-    logError('Error sending export to chat', err);
+    logger.error('Error sending export to chat', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -478,7 +470,7 @@ export const importUserData = async (req: Request, res: Response) => {
     
     res.json({ success: true });
   } catch (err: unknown) {
-    logError('Error importing data', err);
+    logger.error('Error importing data', { error: err, userId: telegramId });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -492,7 +484,10 @@ export const deleteAllUserData = async (req: Request, res: Response) => {
   }
 
   try {
-    console.log(`[AUDIT] User ${telegramId} initiated complete data deletion at ${new Date().toISOString()}`);
+    logger.audit('User initiated complete data deletion', {
+      userId: telegramId,
+      ip: req.ip
+    });
     
     await dbAsync.transaction(async () => {
       // Execute deletions in a transaction
@@ -505,13 +500,18 @@ export const deleteAllUserData = async (req: Request, res: Response) => {
       ]);
       
       const totalDeleted = results.reduce((sum, r) => sum + (r.changes || 0), 0);
-      console.log(`[AUDIT] User ${telegramId} data deletion completed: ${totalDeleted} records deleted`);
+      logger.audit('User data deletion completed', {
+        userId: telegramId,
+        recordsDeleted: totalDeleted
+      });
     });
 
     res.json({ success: true });
   } catch (err: unknown) {
-    console.error(`[AUDIT] User ${telegramId} data deletion FAILED:`, err);
-    logError('Error deleting all user data', err);
+    logger.error('User data deletion failed', {
+      error: err,
+      userId: telegramId
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 };

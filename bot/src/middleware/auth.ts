@@ -97,7 +97,7 @@ export function authenticateTelegramUser(req: Request, res: Response, next: Next
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   
   if (!botToken) {
-    console.error('TELEGRAM_BOT_TOKEN is not set');
+    console.error('[AUTH] TELEGRAM_BOT_TOKEN is not set');
     return res.status(500).json({ error: 'Server configuration error' });
   }
   
@@ -105,6 +105,7 @@ export function authenticateTelegramUser(req: Request, res: Response, next: Next
   const initData = req.headers['x-telegram-init-data'] as string;
   
   if (!initData) {
+    console.warn('[AUTH] Missing initData from IP:', req.ip);
     return res.status(401).json({ error: 'Unauthorized: Missing Telegram authentication data' });
   }
   
@@ -112,11 +113,29 @@ export function authenticateTelegramUser(req: Request, res: Response, next: Next
   const validatedData = validateTelegramWebAppData(initData, botToken);
   
   if (!validatedData || !validatedData.user) {
+    console.warn('[AUTH] Invalid initData from IP:', req.ip);
     return res.status(401).json({ error: 'Unauthorized: Invalid Telegram authentication data' });
+  }
+  
+  // Additional CSRF protection: Check that request comes from expected origin
+  const origin = req.headers.origin || req.headers.referer;
+  const expectedOrigin = process.env.WEBAPP_URL;
+  
+  if (process.env.NODE_ENV === 'production' && expectedOrigin && origin) {
+    const originUrl = new URL(origin);
+    const expectedUrl = new URL(expectedOrigin);
+    
+    if (originUrl.origin !== expectedUrl.origin) {
+      console.warn('[AUTH] Origin mismatch:', { received: originUrl.origin, expected: expectedUrl.origin, userId: validatedData.user.id });
+      return res.status(403).json({ error: 'Forbidden: Invalid origin' });
+    }
   }
   
   // Attach user to request
   req.telegramUser = validatedData.user;
+  
+  // Log successful authentication
+  console.log('[AUTH] User authenticated:', { userId: validatedData.user.id, username: validatedData.user.username });
   
   next();
 }

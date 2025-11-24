@@ -16,6 +16,8 @@ import { initScheduler } from './scheduler';
 import { getLocale } from './locales';
 import bot from './telegram';
 import { authenticateTelegramUser, verifyUserAccess } from './middleware/auth';
+import { requestLogger, errorLogger } from './middleware/requestLogger';
+import { logger } from './utils/logger';
 import './database/init'; // Initialize DB
 
 dotenv.config();
@@ -49,13 +51,24 @@ app.use(cors({
 
 app.use(express.json({ limit: '1mb' })); // Limit body size
 
+// Request logging
+app.use(requestLogger);
+
 // Rate Limiting - General API
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests. Please try again later.' }
+  message: { error: 'Too many requests. Please try again later.' },
+  handler: (req, res) => {
+    console.warn('[RATE_LIMIT] General limit exceeded:', {
+      ip: req.ip,
+      path: req.path,
+      userId: req.telegramUser?.id
+    });
+    res.status(429).json({ error: 'Too many requests. Please try again later.' });
+  }
 });
 
 // Strict rate limiting for sensitive operations
@@ -64,7 +77,15 @@ const strictLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests. Please wait a minute.' }
+  message: { error: 'Too many requests. Please wait a minute.' },
+  handler: (req, res) => {
+    console.warn('[RATE_LIMIT] Strict limit exceeded:', {
+      ip: req.ip,
+      path: req.path,
+      userId: req.telegramUser?.id
+    });
+    res.status(429).json({ error: 'Too many requests. Please wait a minute.' });
+  }
 });
 
 // Backup-specific limiter (1 per minute)
@@ -74,6 +95,13 @@ const backupLimiter = rateLimit({
   message: { error: 'Too many backup requests. Please wait a minute.' },
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    console.warn('[RATE_LIMIT] Backup limit exceeded:', {
+      ip: req.ip,
+      userId: req.telegramUser?.id
+    });
+    res.status(429).json({ error: 'Too many backup requests. Please wait a minute.' });
+  }
 });
 
 // Only start polling if token is present (dev mode) or explicitly enabled
@@ -155,43 +183,58 @@ app.post('/api/user/:id/export-to-chat', backupLimiter, verifyUserAccess, export
 app.post('/api/user/:id/import', strictLimiter, verifyUserAccess, importUserData);
 app.post('/api/user/:id/delete-all', strictLimiter, verifyUserAccess, deleteAllUserData);
 
+// Error handling middleware (must be last)
+app.use(errorLogger);
+
 const server = app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Bot polling: ${shouldRunBot ? 'enabled' : 'disabled'}`);
+  logger.info('Server started', {
+    port,
+    environment: process.env.NODE_ENV || 'development',
+    botPolling: shouldRunBot
+  });
 });
 
 // Graceful shutdown
 const shutdown = async (signal: string) => {
-  console.log(`\n${signal} received, shutting down gracefully...`);
+  logger.info(`Shutdown signal received: ${signal}`);
   
   // Stop accepting new connections
   server.close(async () => {
-    console.log('HTTP server closed');
+    logger.info('HTTP server closed');
     
     // Close database connection
     try {
       const { db } = await import('./database/init');
       db.close((err) => {
         if (err) {
-          console.error('Error closing database:', err);
+          logger.error('Error closing database', { error: err });
           process.exit(1);
         }
-        console.log('Database connection closed');
+        logger.info('Database connection closed');
         process.exit(0);
       });
     } catch (err) {
-      console.error('Error during shutdown:', err);
+      logger.error('Error during shutdown', { error: err });
       process.exit(1);
     }
   });
   
   // Force shutdown after 10 seconds
   setTimeout(() => {
-    console.error('Forced shutdown after timeout');
+    logger.error('Forced shutdown after timeout');
     process.exit(1);
   }, 10000);
 };
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception', { error: err, stack: err.stack });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled rejection', { reason, promise });
+});
