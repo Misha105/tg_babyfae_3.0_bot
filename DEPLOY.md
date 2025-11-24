@@ -55,32 +55,44 @@
     ```
 
 3.  **Установите Docker и Docker Compose:**
-    *Примечание для Debian: Если команда sudo не найдена, установите её: `apt install sudo` и добавьте пользователя в группу sudo.*
+        *Примечание для Debian: Если команда sudo не найдена, установите её: `apt install sudo` и добавьте пользователя в группу sudo.*
 
-    Используем официальный репозиторий Docker (подходит для Ubuntu и Debian).
-    ```bash
-    # Удаляем старые версии, если есть
-    sudo apt-get remove docker docker-engine docker.io containerd runc
+        Используем официальный репозиторий Docker. Скрипт ниже сам различит **Ubuntu** и **Debian** и подключит правильный репозиторий (во избежание ошибки `404 Release` на Debian 12/13).
 
-    # Устанавливаем зависимости
-    sudo apt-get update
-    sudo apt-get install ca-certificates curl gnupg
+        ```bash
+        # Удаляем старые версии, если есть
+        sudo apt-get remove docker docker-engine docker.io containerd runc
 
-    # Добавляем GPG ключ Docker
-    sudo install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/$(. /etc/os-release && echo "$ID")/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+        # Устанавливаем зависимости
+        sudo apt-get update
+        sudo apt-get install -y ca-certificates curl gnupg
 
-    # Добавляем репозиторий (Автоматически определяет Ubuntu или Debian)
-    echo \
-      "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$(. /etc/os-release && echo "$ID") \
-      "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
-      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        # Определяем тип дистрибутива (ubuntu или debian)
+        . /etc/os-release
+        DIST_ID=$ID       # ubuntu или debian
+        DIST_CODENAME=$VERSION_CODENAME  # jammy, noble, trixie и т.д.
 
-    # Устанавливаем Docker Engine
-    sudo apt-get update
-    sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
-    ```
+        # Добавляем GPG ключ Docker
+        sudo install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/${DIST_ID}/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+        # Добавляем репозиторий Docker для текущего дистрибутива
+        echo \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${DIST_ID} \
+            ${DIST_CODENAME} stable" | \
+            sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+        # Устанавливаем Docker Engine и docker compose (плагин v2)
+        sudo apt-get update
+        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+        # (Опционально) запуск Docker без sudo.
+        # ВАЖНО: пользователь с правом управления Docker фактически имеет права root.
+        # Включайте это только для доверенного пользователя (обычно вашего SSH-пользователя).
+        sudo usermod -aG docker "$USER"
+        echo "Перезапустите SSH-сессию, чтобы группа docker применилась."
+        ```
 
     **Проверка установки Docker:**
     ```bash
