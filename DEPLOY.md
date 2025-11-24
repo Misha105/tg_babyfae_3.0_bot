@@ -35,10 +35,26 @@
 1.  **Обновите систему и установите базовые утилиты:**
     ```bash
     sudo apt update && sudo apt upgrade -y
-    sudo apt install curl git -y
+    sudo apt install curl git sqlite3 -y
     ```
 
-2.  **Установите Docker и Docker Compose:**
+2.  **Настройте Swap (Файл подкачки) — ОБЯЗАТЕЛЬНО:**
+    Сборка Frontend-части требует много памяти. Если у вас меньше 4 ГБ RAM, создайте Swap **до** начала установки, иначе сборка упадет с ошибкой.
+    ```bash
+    # Проверяем текущий swap
+    sudo swapon --show
+
+    # Если пусто, создаем файл подкачки 4ГБ
+    sudo fallocate -l 4G /swapfile
+    sudo chmod 600 /swapfile
+    sudo mkswap /swapfile
+    sudo swapon /swapfile
+
+    # Делаем постоянным
+    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+    ```
+
+3.  **Установите Docker и Docker Compose:**
     В современных дистрибутивах (Ubuntu 22.04/24.04) рекомендуется использовать официальный репозиторий Docker.
     ```bash
     # Удаляем старые версии, если есть
@@ -62,6 +78,15 @@
     # Устанавливаем Docker Engine
     sudo apt-get update
     sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+    ```
+
+    **Проверка установки Docker:**
+    ```bash
+    docker --version
+    docker compose version
+    sudo systemctl enable docker
+    sudo systemctl start docker
+    sudo systemctl status docker
     ```
 
 ---
@@ -90,6 +115,22 @@
     *   `VITE_API_URL`: Оставьте пустым! (Nginx внутри контейнера сам перенаправит запросы).
     *   `ENABLE_BOT_POLLING`: `true` (по умолчанию). Установите `false`, если запускаете только API-сервер.
     *   `TZ`: `Europe/Moscow` (или ваш часовой пояс). Полезно для корректного времени в логах.
+
+    **Хранение секретов:**
+    ```bash
+    chmod 600 .env
+    ```
+    Не добавляйте `.env` в git (файл уже в `.gitignore`). Используйте менеджер секретов провайдера, если храните значения вне сервера.
+
+### Профили окружений (Dev/Stage/Prod)
+
+| Профиль | Цель | Отличия |
+| --- | --- | --- |
+| Development | Локальная разработка | Используйте `npm run dev` в подкаталогах `bot/` и `frontend/`, включен Vite proxy на `http://localhost:3000`, `.env` может содержать `NODE_ENV=development`. |
+| Staging | Тестирование на VPS | Развертывайте по этой инструкции, но указывайте отдельный домен (например, `staging.example.com`) и Telegram-бота-песочницу. В переменных окружения включайте `ENABLE_BOT_POLLING=false`, если основные уведомления обрабатывает production. |
+| Production | Боевая среда | Используйте HTTPS-домен в `WEBAPP_URL`, включайте Swap/Firewall, следите за бэкапами. |
+
+Создайте отдельные `.env.production`, `.env.staging` файлы (не коммитить) и подставляйте их через `env_file` при необходимости.
 
 3.  **Запустите контейнеры:**
     Используйте команду `docker compose` (V2), которая является стандартом в 2024-2025 годах.
@@ -173,6 +214,35 @@ Telegram WebApp **требует** наличие HTTPS. Мы настроим N
 
 ---
 
+## Проверка готовности (Health-check)
+
+1.  **Проверьте доступность фронтенда c сервера:**
+    ```bash
+    curl -I http://127.0.0.1:8080
+    ```
+    Ответ должен содержать `HTTP/1.1 200 OK`.
+
+2.  **Проверьте HTTPS c внешнего адреса (можно с локальной машины):**
+    ```bash
+    curl -I https://your-domain.com
+    ```
+
+3.  **Проверьте backend health endpoint:**
+    ```bash
+    # Используем wget, так как curl может отсутствовать в минимальном образе
+    sudo docker compose exec bot wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/health
+    ```
+    Если команда ничего не вывела (или вернула 0) — все ок. Если ошибка — сервис недоступен.
+
+4.  **Контролируйте логи:**
+    ```bash
+    sudo docker compose logs --tail=50 bot frontend
+    ```
+
+Если какой-либо шаг завершается ошибкой, вернитесь к разделу "Устранение неполадок".
+
+---
+
 ## Шаг 4: Настройка в Telegram
 
 1.  Откройте **BotFather** в Telegram.
@@ -210,26 +280,9 @@ Telegram WebApp **требует** наличие HTTPS. Мы настроим N
 
 ## Рекомендации по настройке и оптимизации VPS
 
-Чтобы ваш сервер работал стабильно и безопасно, выполните следующие настройки сразу после получения доступа к VPS.
+Чтобы ваш сервер работал стабильно и безопасно, выполните следующие настройки.
 
-### 1. Настройка Swap (Файл подкачки)
-Если у вас меньше 4 ГБ RAM, Swap **обязателен**. Docker-сборка (`npm install`, `npm run build`) потребляет много памяти и может "убить" процесс без Swap.
-
-```bash
-# Проверяем текущий swap
-sudo swapon --show
-
-# Создаем файл подкачки 4ГБ
-sudo fallocate -l 4G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-
-# Делаем постоянным (добавляем в fstab)
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-```
-
-### 2. Базовая безопасность (Firewall & SSH)
+### 1. Базовая безопасность (Firewall & SSH)
 Не оставляйте сервер открытым для всех ветров.
 
 ```bash
@@ -253,7 +306,7 @@ sudo systemctl enable fail2ban
 3.  Установите: `PasswordAuthentication no`
 4.  Перезапустите: `sudo systemctl restart ssh`
 
-### 3. Ротация логов Docker
+### 2. Ротация логов Docker
 По умолчанию Docker хранит логи контейнеров бесконечно, что может забить диск. Настройте ротацию.
 
 Создайте файл `/etc/docker/daemon.json`:
@@ -270,20 +323,30 @@ sudo systemctl enable fail2ban
 
 ---
 
-### 4. Резервное копирование (Backups)
+### 3. Резервное копирование (Backups)
 Потеря данных — это катастрофа. Настройте автоматическое резервное копирование базы данных.
 
-Простой скрипт для бэкапа SQLite (добавьте в cron):
+Так как база данных подключена через volume (`./data:/app/data`), мы можем делать бэкап прямо с хост-машины, используя установленную утилиту `sqlite3`.
+
+Простой скрипт для бэкапа (добавьте в cron):
 ```bash
 #!/bin/bash
+# Путь к папке проекта (где лежит docker-compose.yml)
+PROJECT_DIR="/root/app"
+DATA_DIR="$PROJECT_DIR/data"
 BACKUP_DIR="/root/backups"
 DATE=$(date +%Y-%m-%d_%H-%M-%S)
+
 mkdir -p $BACKUP_DIR
 
-# Копируем файл БД (SQLite в WAL режиме можно копировать на лету, но лучше использовать команду .backup)
-docker exec babyfae-bot sqlite3 /app/data/babyfae.db ".backup '/app/data/backup_temp.db'"
-docker cp babyfae-bot:/app/data/backup_temp.db $BACKUP_DIR/babyfae_$DATE.db
-docker exec babyfae-bot rm /app/data/backup_temp.db
+# Используем sqlite3 на хосте для безопасного бэкапа (даже если база активна)
+# Убедитесь, что sqlite3 установлен: sudo apt install sqlite3
+if [ -f "$DATA_DIR/babyfae.db" ]; then
+    sqlite3 "$DATA_DIR/babyfae.db" ".backup '$BACKUP_DIR/babyfae_$DATE.db'"
+    echo "Backup created: $BACKUP_DIR/babyfae_$DATE.db"
+else
+    echo "Database file not found at $DATA_DIR/babyfae.db"
+fi
 
 # Удаляем бэкапы старше 7 дней
 find $BACKUP_DIR -type f -name "*.db" -mtime +7 -delete
