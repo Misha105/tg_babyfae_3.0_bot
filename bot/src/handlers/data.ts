@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { Request, Response } from 'express';
 import { dbAsync } from '../database/db-helper';
 import bot from '../telegram';
@@ -7,9 +8,14 @@ import {
   validateCustomActivity, 
   validateGrowthRecord,
   validateProfile,
-  validateSettings
+  validateSettings,
+  validateJsonSize
 } from '../utils/validation';
+import type { ValidationResult } from '../utils/validation';
 import { logger } from '../utils/logger';
+
+// Limit import payloads to reduce DoS risk and enforce audit finding #2 safeguards.
+const MAX_IMPORT_RECORDS = 5000;
 
 // Safe JSON parse helper
 const safeJsonParse = <T = unknown>(data: string | null, fallback: T | null = null): T | null => {
@@ -394,6 +400,76 @@ export const importUserData = async (req: Request, res: Response) => {
   // Basic validation of backup structure
   if (!data.version || !data.timestamp) {
     return res.status(400).json({ error: 'Invalid backup file format' });
+  }
+
+  const validatePayloadArray = <T>(items: T[], label: string, validator: (value: T) => ValidationResult) => {
+    if (items.length > MAX_IMPORT_RECORDS) {
+      return `${label} exceed maximum batch size of ${MAX_IMPORT_RECORDS}`;
+    }
+    for (let index = 0; index < items.length; index++) {
+      const check = validator(items[index]);
+      if (!check.valid) {
+        return `${label}[${index}] invalid: ${check.error}`;
+      }
+    }
+    return null;
+  };
+
+  if (data.profile) {
+    const profileValidation = validateProfile(data.profile);
+    if (!profileValidation.valid) {
+      return res.status(400).json({ error: `Invalid profile: ${profileValidation.error}` });
+    }
+  }
+
+  if (data.settings) {
+    const settingsValidation = validateSettings(data.settings);
+    if (!settingsValidation.valid) {
+      return res.status(400).json({ error: `Invalid settings: ${settingsValidation.error}` });
+    }
+  }
+
+  if (Array.isArray(data.activities)) {
+    const error = validatePayloadArray(data.activities, 'activities', validateActivity);
+    if (error) {
+      return res.status(400).json({ error });
+    }
+  }
+
+  if (Array.isArray(data.customActivities)) {
+    const error = validatePayloadArray(data.customActivities, 'customActivities', validateCustomActivity);
+    if (error) {
+      return res.status(400).json({ error });
+    }
+  }
+
+  if (Array.isArray(data.growthRecords)) {
+    const error = validatePayloadArray(data.growthRecords, 'growthRecords', validateGrowthRecord);
+    if (error) {
+      return res.status(400).json({ error });
+    }
+  }
+
+  if (Array.isArray(data.schedules)) {
+    if (data.schedules.length > MAX_IMPORT_RECORDS) {
+      return res.status(400).json({ error: `schedules exceed maximum batch size of ${MAX_IMPORT_RECORDS}` });
+    }
+    for (let index = 0; index < data.schedules.length; index++) {
+      const schedule = data.schedules[index];
+      if (!schedule || typeof schedule !== 'object') {
+        return res.status(400).json({ error: `schedules[${index}] invalid: must be an object` });
+      }
+      if (!schedule.id || typeof schedule.id !== 'string') {
+        return res.status(400).json({ error: `schedules[${index}] invalid: missing id` });
+      }
+      if (!schedule.type || typeof schedule.type !== 'string') {
+        return res.status(400).json({ error: `schedules[${index}] invalid: missing type` });
+      }
+      const scheduleSize = validateJsonSize(schedule);
+      if (!scheduleSize.valid) {
+        return res.status(400).json({ error: `schedules[${index}] invalid: ${scheduleSize.error}` });
+      }
+    }
   }
 
   try {

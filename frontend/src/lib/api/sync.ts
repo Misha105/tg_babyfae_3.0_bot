@@ -8,7 +8,6 @@ export const fetchUserData = async (userId: number) => {
 export const fetchActivities = async (userId: number, limit: number = 50, before?: string) => {
   const params = new URLSearchParams({ limit: limit.toString() });
   if (before) params.append('before', before);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return apiGet<{ activities: ActivityRecord[] }>(`/api/user/${userId}/activities?${params.toString()}`);
 };
 
@@ -46,6 +45,10 @@ export const deleteGrowthRecord = async (userId: number, recordId: string) => {
 
 export const exportUserData = async (userId: number) => {
   return apiGet(`/api/user/${userId}/export`);
+};
+
+export const exportUserDataToChat = async (userId: number, payload: { data: ImportData; language?: string }) => {
+  return apiPost(`/api/user/${userId}/export-to-chat`, payload);
 };
 
 export const importUserData = async (userId: number, data: ImportData) => {

@@ -20,9 +20,21 @@ interface ScheduleData {
   [key: string]: any;
 }
 
+let isProcessingNotifications = false;
+
 export const initScheduler = (bot: TelegramBot) => {
-  cron.schedule('* * * * *', () => {
-    checkNotifications(bot);
+  cron.schedule('* * * * *', async () => {
+    if (isProcessingNotifications) {
+      console.warn('Notification scheduler still running, skipping this tick');
+      return;
+    }
+
+    isProcessingNotifications = true;
+    try {
+      await checkNotifications(bot);
+    } finally {
+      isProcessingNotifications = false;
+    }
   });
   console.log('Scheduler initialized');
 };
@@ -42,18 +54,25 @@ const checkNotifications = async (bot: TelegramBot) => {
         continue; // Skip malformed data
       }
 
-      // Send notification
-      const message = getNotificationMessage(row, scheduleData.language);
-      bot.sendMessage(row.chat_id, message).catch(e => console.error('Failed to send message', e.message));
-      
-      // Update next_run
+      // Claim the row before sending so multiple workers don't double-send (audit finding #7)
+      const intervalMinutes = scheduleData.intervalMinutes || 180; // Default 3 hours
+      const nextRun = now + (intervalMinutes * 60);
+      const claim = await dbAsync.run(
+        'UPDATE notification_schedules SET next_run = ? WHERE id = ? AND enabled = 1 AND next_run = ?',
+        [nextRun, row.id, row.next_run]
+      );
+
+      if (!claim.changes) {
+        continue; // Another worker already advanced this schedule
+      }
+
       try {
-        const intervalMinutes = scheduleData.intervalMinutes || 180; // Default 3 hours
-        const nextRun = now + (intervalMinutes * 60);
-        
-        await dbAsync.run('UPDATE notification_schedules SET next_run = ? WHERE id = ?', [nextRun, row.id]);
+        const message = getNotificationMessage(row, scheduleData.language);
+        await bot.sendMessage(row.chat_id, message);
       } catch (e) {
-        console.error('Error updating next_run', row.id, e);
+        console.error('Failed to send message', row.id, e);
+        // Roll back next_run so the notification can retry soon
+        await dbAsync.run('UPDATE notification_schedules SET next_run = ? WHERE id = ?', [row.next_run, row.id]);
       }
     }
   } catch (err) {

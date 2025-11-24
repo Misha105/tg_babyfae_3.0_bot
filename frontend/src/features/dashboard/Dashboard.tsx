@@ -213,7 +213,8 @@ export const Dashboard: React.FC = () => {
       <ActivityInputModal
         type={activeModal}
         onClose={() => setActiveModal(null)}
-        onSave={handleModalSave}
+        // Attach the existing handler to unblock modal saves (audit finding #3).
+        onSave={handleActivitySave}
       />
     )}
     </>

@@ -22,9 +22,13 @@ import './database/init'; // Initialize DB
 dotenv.config();
 
 const app = express();
-// Trust proxy is required because we are behind Nginx (Host) -> Nginx (Docker)
-// Since the bot is only accessible via the internal Docker network, trusting all proxies is safe and ensures correct IP resolution for rate limiting.
-app.set('trust proxy', true); 
+// Trust only explicit proxy hops to prevent forged X-Forwarded-For addresses (audit finding #1).
+// Multiple proxies can be configured via TRUSTED_PROXIES="ip1,ip2"; fallback covers loopback/link-local ranges used in dockerised setups.
+const trustedProxies = (process.env.TRUSTED_PROXIES ?? 'loopback,linklocal,uniquelocal')
+  .split(',')
+  .map((proxy) => proxy.trim())
+  .filter(Boolean);
+app.set('trust proxy', trustedProxies);
 const port = process.env.PORT || 3000;
 
 // Security Middleware

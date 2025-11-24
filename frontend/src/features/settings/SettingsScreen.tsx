@@ -10,6 +10,8 @@ import { useTranslation } from 'react-i18next';
 import { CustomActivityForm } from './CustomActivityForm';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { syncSchedule, deleteSchedule } from '@/lib/api/notifications';
+import { exportUserDataToChat, importUserData as importUserDataApi } from '@/lib/api/sync';
+import { ApiError } from '@/lib/api/client';
 import { addToQueue } from '@/lib/api/queue';
 import { createDateFromInput } from '@/lib/dateUtils';
 import { getTelegramUserId } from '@/lib/telegram/userData';
@@ -27,7 +29,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 export const SettingsScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { profile, updateProfile, customActivities, removeCustomActivity, settings, updateSettings, resetAllData, importData } = useStore();
+  const { profile, updateProfile, customActivities, removeCustomActivity, settings, updateSettings, resetAllData, syncWithServer } = useStore();
   
   // UI States
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -50,8 +52,8 @@ export const SettingsScreen: React.FC = () => {
       const exportData = {
         version: '3.0.0',
         timestamp: new Date().toISOString(),
-        profile: state.profile,
-        settings: state.settings,
+        profile: state.profile ?? undefined,
+        settings: state.settings ?? undefined,
         activities: state.activities,
         customActivities: state.customActivities,
         growthRecords: state.growthRecords,
@@ -61,27 +63,19 @@ export const SettingsScreen: React.FC = () => {
       const userId = getTelegramUserId();
       if (userId) {
           try {
-            const API_URL = import.meta.env.VITE_API_URL || '';
-            const response = await fetch(`${API_URL}/api/user/${userId}/export-to-chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  data: exportData,
-                  language: i18n.language 
-                })
+            // Use authenticated API path so Telegram headers are attached (audit finding #5).
+            await exportUserDataToChat(userId, {
+              data: exportData,
+              language: i18n.language
             });
-            
-            if (response.ok) {
-                alert(t('settings.export_sent_to_chat', 'Backup sent to your chat!'));
-                return;
-            } else if (response.status === 429) {
-                alert(t('settings.export_limit_reached', 'Too many backup requests. Please wait a minute.'));
-                return;
-            } else {
-                console.warn('Backend export failed, falling back to local download');
+            alert(t('settings.export_sent_to_chat', 'Backup sent to your chat!'));
+            return;
+          } catch (error) {
+            if (error instanceof ApiError && error.status === 429) {
+              alert(t('settings.export_limit_reached', 'Too many backup requests. Please wait a minute.'));
+              return;
             }
-          } catch (e) {
-              console.warn('Backend export error', e);
+            console.warn('Backend export failed, falling back to local download', error);
           }
       }
 
@@ -141,15 +135,19 @@ export const SettingsScreen: React.FC = () => {
         throw new Error('Invalid backup file format');
       }
 
-      await importData(data);
-      
-      // Refresh app state (optional if importData already sets state, but good for side effects)
-      // await syncWithServer(12345); 
-      
+      const userId = getTelegramUserId();
+      if (!userId) {
+        throw new Error('User ID missing');
+      }
+
+      // Send backup to the backend so data stays consistent across devices (audit finding #4).
+      await importUserDataApi(userId, data);
+      await syncWithServer(userId);
       alert(t('settings.import_success', 'Data imported successfully'));
     } catch (error) {
       console.error('Import failed:', error);
-      alert(t('settings.import_error', 'Failed to import data. Invalid file format.'));
+      const message = error instanceof Error ? error.message : t('settings.import_error', 'Failed to import data. Invalid file format.');
+      alert(message);
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {

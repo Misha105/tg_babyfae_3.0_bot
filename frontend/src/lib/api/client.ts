@@ -2,6 +2,17 @@
  * API client with Telegram authentication
  */
 
+export class ApiError extends Error {
+  status: number;
+  body: unknown;
+
+  constructor(status: number, message: string, body: unknown) {
+    super(message);
+    this.status = status;
+    this.body = body;
+  }
+}
+
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 /**
@@ -55,7 +66,10 @@ export async function apiRequest<T = unknown>(
   
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    const message = (errorData && typeof errorData === 'object' && 'error' in errorData)
+      ? (errorData as Record<string, string>).error ?? 'Unknown error'
+      : 'Unknown error';
+    throw new ApiError(response.status, message || `HTTP ${response.status}: ${response.statusText}`, errorData);
   }
   
   return response.json();
