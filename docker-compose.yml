@@ -20,7 +20,7 @@ services:
     container_name: babyfae-frontend
     restart: always
     ports:
-      - "8080:80" # Expose on 8080 to avoid conflict with host Nginx
+      - "127.0.0.1:8080:80" # Expose on localhost:8080 only (security: force access via Host Nginx)
     depends_on:
       - bot
     networks:
