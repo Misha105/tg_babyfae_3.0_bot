@@ -1,0 +1,107 @@
+openapi: 3.0.0
+info:
+  title: Babyfae Bot API
+  version: 1.0.0
+  description: API for the Babyfae Telegram Bot Backend
+
+paths:
+  /webhook/telegram:
+    post:
+      summary: Receive Telegram Updates
+      description: Endpoint registered with Telegram Bot API to receive webhooks.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Telegram Update object
+      responses:
+        '200':
+          description: OK
+
+  /api/schedules/update:
+    post:
+      summary: Update Notification Schedules
+      description: Syncs notification preferences from Mini App to Bot Backend.
+      parameters:
+        - in: header
+          name: X-Telegram-Init-Data
+          schema:
+            type: string
+          required: true
+          description: Raw initData string for validation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                schedules:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/NotificationSchedule'
+      responses:
+        '200':
+          description: Schedules updated successfully
+        '401':
+          description: Invalid initData
+
+  /api/schedules/delete:
+    post:
+      summary: Delete Notification Schedules
+      description: Removes specific schedules.
+      parameters:
+        - in: header
+          name: X-Telegram-Init-Data
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Schedules deleted
+
+  /health:
+    get:
+      summary: Health Check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  uptime:
+                    type: number
+
+components:
+  schemas:
+    NotificationSchedule:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [feeding, medication, custom]
+        next_run:
+          type: number
+          description: Unix timestamp
+        schedule_data:
+          type: object

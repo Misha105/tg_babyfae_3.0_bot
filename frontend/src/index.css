@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  /* Default fallbacks if JS doesn't set them immediately */
+  --tg-safe-area-top: env(safe-area-inset-top, 0px);
+  --tg-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Safe Area Utilities */
+.pt-safe {
+  padding-top: var(--tg-safe-area-top);
+}
+
+.pb-safe {
+  padding-bottom: var(--tg-safe-area-bottom);
+}
+
+.top-safe {
+  top: var(--tg-safe-area-top);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Prevent scroll on body */
+  overscroll-behavior: none; /* Disable pull-to-refresh/bounce */
+  background-color: #0f172a; /* Match slate-900 */
+  user-select: none; /* Prevent text selection like native app */
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto; /* Allow scrolling inside the app container */
+  overscroll-behavior-y: none;
+}
+
+/* Custom Scrollbar for WebKit */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 2px;
+}

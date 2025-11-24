@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  bot:
+    build: ./bot
+    container_name: babyfae-bot
+    restart: always
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    networks:
+      - app-network
+
+  frontend:
+    build: ./frontend
+    container_name: babyfae-frontend
+    restart: always
+    ports:
+      - "8080:80" # Expose on 8080 to avoid conflict with host Nginx
+    depends_on:
+      - bot
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

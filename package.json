@@ -1,0 +1,16 @@
+{
+  "name": "babyfae-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:bot\" \"npm run dev:frontend\"",
+    "dev:bot": "cd bot && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "tunnel": "cloudflared tunnel --url http://localhost:5173",
+    "install:all": "npm install && cd bot && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build && cd ../bot && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.0"
+  }
+}
