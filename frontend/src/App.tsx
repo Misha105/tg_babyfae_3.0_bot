@@ -27,8 +27,8 @@ function App() {
   useEffect(() => {
     const initialize = async () => {
       try {
-        // Initialize Telegram SDK first
-        initTelegram();
+        // Initialize Telegram SDK first (async, waits for all mounts)
+        await initTelegram();
         
         // Get the current Telegram user ID
         const userId = getTelegramUserId();

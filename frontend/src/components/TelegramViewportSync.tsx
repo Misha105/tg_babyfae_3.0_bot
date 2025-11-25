@@ -1,21 +1,38 @@
 import { useEffect, useState } from 'react';
 import { viewport } from '@telegram-apps/sdk-react';
+import { isSdkInitialized } from '@/lib/telegram/init';
 
 export const TelegramViewportSync = () => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    try {
-      if (viewport && !viewport.isMounted()) {
-        viewport.mount().then(() => {
+    // Wait for SDK to be initialized before accessing viewport
+    if (!isSdkInitialized()) {
+      // Re-check after a short delay
+      const checkInterval = setInterval(() => {
+        if (isSdkInitialized()) {
+          clearInterval(checkInterval);
+          checkViewport();
+        }
+      }, 50);
+      return () => clearInterval(checkInterval);
+    } else {
+      checkViewport();
+    }
+    
+    function checkViewport() {
+      try {
+        if (viewport && viewport.isMounted()) {
           setIsMounted(true);
-        }).catch(e => console.error('Viewport mount failed', e));
-      } else if (viewport && viewport.isMounted()) {
-        // Defer state update to avoid synchronous update warning
-        setTimeout(() => setIsMounted(true), 0);
+        } else if (viewport && !viewport.isMounted()) {
+          // SDK should have mounted it, but try again as fallback
+          viewport.mount().then(() => {
+            setIsMounted(true);
+          }).catch(e => console.warn('Viewport mount failed in sync component', e));
+        }
+      } catch (e) {
+        console.warn('Viewport access failed', e);
       }
-    } catch (e) {
-      console.error('Viewport access failed', e);
     }
   }, []);
 
