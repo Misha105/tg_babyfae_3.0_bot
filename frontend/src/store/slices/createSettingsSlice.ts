@@ -1,10 +1,17 @@
 import type { StateCreator } from 'zustand';
 import type { Settings, CustomActivityDefinition } from '@/types';
 import { saveUserSettings, saveCustomActivity, deleteCustomActivity } from '@/lib/api/sync';
-import { getTelegramUserId } from '@/lib/telegram/userData';
+import { getCurrentUserId } from '@/store/userContext';
 import { addToQueue } from '@/lib/api/queue';
 
-const getUserId = () => getTelegramUserId() || 12345;
+const getUserId = (): number => {
+  const userId = getCurrentUserId();
+  if (!userId) {
+    console.error('[SettingsSlice] No user ID available');
+    throw new Error('User not authenticated');
+  }
+  return userId;
+};
 
 export interface SettingsSlice {
   settings: Settings;

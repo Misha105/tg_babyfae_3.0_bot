@@ -8,14 +8,70 @@ import { createSleepSlice, type SleepSlice } from './slices/createSleepSlice';
 import { createGrowthSlice, type GrowthSlice } from './slices/createGrowthSlice';
 import { fetchUserData, deleteAllUserData } from '@/lib/api/sync';
 import { processQueue } from '@/lib/api/queue';
+import { 
+  getCurrentUserId, 
+  setCurrentUserId as setUserContextId,
+  clearCachedData as clearUserContextData 
+} from './userContext';
+
+// Re-export user context functions for external use
+export { getCurrentUserId } from './userContext';
+
+/**
+ * Set the current user ID and handle storage migration/isolation
+ * Should be called during app initialization after getting Telegram user ID
+ */
+export const setCurrentUserId = setUserContextId;
+
+/**
+ * Clear all cached data for security (call when logging out or switching users)
+ */
+export const clearCachedData = clearUserContextData;
 
 type AppState = ProfileSlice & ActivitySlice & SettingsSlice & SleepSlice & GrowthSlice & {
   _hasHydrated: boolean;
+  _isServerSynced: boolean;
+  _currentUserId: number | null;
   setHasHydrated: (state: boolean) => void;
+  setServerSynced: (state: boolean) => void;
   syncWithServer: (userId: number) => Promise<void>;
   resetAllData: (userId: number) => Promise<void>;
   importData: (data: ImportData) => Promise<void>;
+  initializeForUser: (userId: number) => Promise<void>;
 };
+
+/**
+ * Create user-scoped storage adapter
+ * This ensures each user's data is stored in a separate localStorage key
+ */
+const createUserScopedStorage = () => ({
+  getItem: (name: string): string | null => {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      // During initial load, return null to force server sync
+      return null;
+    }
+    const key = `${name}-${userId}`;
+    return localStorage.getItem(key);
+  },
+  setItem: (name: string, value: string): void => {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      // Don't persist data without a valid user ID
+      console.warn('[Storage] Attempted to save without user ID, skipping');
+      return;
+    }
+    const key = `${name}-${userId}`;
+    localStorage.setItem(key, value);
+  },
+  removeItem: (name: string): void => {
+    const userId = getCurrentUserId();
+    if (userId) {
+      const key = `${name}-${userId}`;
+      localStorage.removeItem(key);
+    }
+  },
+});
 
 export const useStore = create<AppState>()(
   persist(
@@ -26,8 +82,106 @@ export const useStore = create<AppState>()(
       ...createSleepSlice(set, get, ...a),
       ...createGrowthSlice(set, get, ...a),
       _hasHydrated: false,
+      _isServerSynced: false,
+      _currentUserId: null,
       setHasHydrated: (state) => {
         set({ _hasHydrated: state });
+      },
+      setServerSynced: (state) => {
+        set({ _isServerSynced: state });
+      },
+      /**
+       * Initialize store for a specific user
+       * This is the main entry point that should be called on app start
+       * It fetches data from server and only falls back to cache if server is unreachable
+       */
+      initializeForUser: async (userId: number) => {
+        console.log(`[Store] Initializing for user ${userId}`);
+        
+        // Check if we're switching users
+        const previousUserId = get()._currentUserId;
+        if (previousUserId && previousUserId !== userId) {
+          console.log(`[Store] User changed from ${previousUserId} to ${userId}, clearing state`);
+          // Clear previous user's state from memory
+          set({
+            profile: null,
+            activities: [],
+            settings: {
+              feedingIntervalMinutes: 180,
+              notificationsEnabled: true,
+              themePreference: 'auto',
+            },
+            customActivities: [],
+            activeSleepStart: null,
+            growthRecords: [],
+            _isServerSynced: false,
+          });
+        }
+        
+        // Update the current user ID
+        setCurrentUserId(userId);
+        set({ _currentUserId: userId });
+        
+        try {
+          // Process any pending offline queue items first
+          await processQueue();
+          
+          // ALWAYS fetch from server first - server is the source of truth
+          console.log(`[Store] Fetching data from server for user ${userId}`);
+          const data = await fetchUserData(userId) as UserDataResponse;
+          
+          // Apply server data
+          set({
+            profile: data?.profile || null,
+            settings: data?.settings || {
+              feedingIntervalMinutes: 180,
+              notificationsEnabled: true,
+              themePreference: 'auto',
+            },
+            activities: data?.activities || [],
+            customActivities: data?.customActivities || [],
+            growthRecords: data?.growthRecords || [],
+            _isServerSynced: true,
+            _hasHydrated: true,
+          });
+          
+          console.log(`[Store] Server sync complete for user ${userId}`, {
+            hasProfile: !!data?.profile,
+            activitiesCount: data?.activities?.length || 0,
+          });
+        } catch (error) {
+          console.error(`[Store] Server sync failed for user ${userId}:`, error);
+          
+          // Only fall back to local cache if server is completely unreachable
+          // and we have cached data for THIS specific user
+          const cachedData = localStorage.getItem(`babyfae-storage-${userId}`);
+          if (cachedData) {
+            try {
+              const parsed = JSON.parse(cachedData);
+              if (parsed?.state) {
+                console.log(`[Store] Using cached data for user ${userId}`);
+                set({
+                  profile: parsed.state.profile || null,
+                  settings: parsed.state.settings || {
+                    feedingIntervalMinutes: 180,
+                    notificationsEnabled: true,
+                    themePreference: 'auto',
+                  },
+                  activities: parsed.state.activities || [],
+                  customActivities: parsed.state.customActivities || [],
+                  growthRecords: parsed.state.growthRecords || [],
+                  _hasHydrated: true,
+                  _isServerSynced: false, // Mark as not synced
+                });
+              }
+            } catch (parseError) {
+              console.error('[Store] Failed to parse cached data:', parseError);
+            }
+          }
+          
+          // Mark as hydrated even if we have no data
+          set({ _hasHydrated: true });
+        }
       },
       importData: async (data: ImportData) => {
         if (!data || typeof data !== 'object') {
@@ -85,9 +239,8 @@ export const useStore = create<AppState>()(
             growthRecords: [],
           });
           
-          // Clear persisted storage explicitly if needed, though set() updates it.
-          // But to be safe and clean:
-          localStorage.removeItem('babyfae-storage');
+          // Clear persisted storage for this specific user
+          localStorage.removeItem(`babyfae-storage-${userId}`);
           
           console.log('All data reset successfully');
         } catch (e) {
@@ -96,6 +249,13 @@ export const useStore = create<AppState>()(
         }
       },
       syncWithServer: async (userId: number) => {
+        // Verify we're syncing for the correct user
+        const currentUser = getCurrentUserId();
+        if (currentUser !== userId) {
+          console.warn(`[Store] Sync requested for user ${userId} but current user is ${currentUser}`);
+          return;
+        }
+        
         try {
           // 1. Process offline queue first to push local changes
           await processQueue();
@@ -103,14 +263,12 @@ export const useStore = create<AppState>()(
           // 2. Fetch latest data from server
           const data = await fetchUserData(userId) as UserDataResponse;
           
-          // Profile and Settings: Server is truth, but if local has changes that failed to sync?
-          // For now, let's assume server wins for profile/settings as they are less frequent.
+          // Server is the source of truth - apply server data directly
+          // This prevents data leakage between users
           if (data?.profile) set({ profile: data.profile });
           if (data?.settings) set({ settings: data.settings });
           
-          // Activities: Merge Strategy
-          // 1. Keep local activities that are NOT on the server (potential unsynced data)
-          // 2. Update/Add activities from the server (server is truth for what it has)
+          // For activities, we still merge to preserve offline changes
           if (data?.activities && Array.isArray(data.activities)) {
             const currentActivities = get().activities || [];
             const serverActivitiesMap = new Map((data.activities as ActivityRecord[]).map(a => [a.id, a]));
@@ -118,7 +276,7 @@ export const useStore = create<AppState>()(
             // Start with server activities
             const mergedActivities = [...(data.activities as ActivityRecord[])];
             
-            // Add local activities that are missing from server
+            // Add local activities that are missing from server (offline additions)
             for (const localActivity of currentActivities) {
               if (!serverActivitiesMap.has(localActivity.id)) {
                 mergedActivities.push(localActivity);
@@ -162,17 +320,21 @@ export const useStore = create<AppState>()(
              set({ growthRecords: mergedGrowth });
           }
 
+          set({ _isServerSynced: true });
           console.log('Synced with server successfully');
         } catch (e) {
           console.error('Sync failed:', e);
+          set({ _isServerSynced: false });
         }
       }
     }),
     {
       name: 'babyfae-storage',
-      storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+      storage: createJSONStorage(() => createUserScopedStorage()),
+      onRehydrateStorage: () => () => {
+        // Don't auto-hydrate - we handle this manually in initializeForUser
+        // This prevents loading wrong user's data
+        console.log('[Store] Rehydration callback triggered');
       },
       partialize: (state) => ({
         profile: state.profile,
@@ -182,6 +344,8 @@ export const useStore = create<AppState>()(
         activeSleepStart: state.activeSleepStart,
         growthRecords: state.growthRecords,
       }),
+      // Skip hydration on initial load - we'll do it manually after getting user ID
+      skipHydration: true,
     }
   )
 );

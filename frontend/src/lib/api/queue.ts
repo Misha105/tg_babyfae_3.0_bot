@@ -1,6 +1,7 @@
 import { syncSchedule, deleteSchedule } from './notifications';
 import { saveActivity, deleteActivity, saveGrowthRecord, deleteGrowthRecord, saveUserProfile, saveUserSettings, saveCustomActivity, deleteCustomActivity } from './sync';
 import { ApiError } from './client';
+import { getCurrentUserId } from '@/store/userContext';
 
 interface QueueItem {
   id: string;
@@ -9,11 +10,23 @@ interface QueueItem {
   timestamp: number;
   attempts?: number;
   lastError?: string;
+  userId?: number; // Track which user this queue item belongs to
 }
 
-const QUEUE_KEY = 'babyfae_offline_queue';
+const QUEUE_KEY_PREFIX = 'babyfae_offline_queue';
 // Constrain retries/fallback IDs to stop silent infinite loops (audit finding #6).
 const MAX_QUEUE_RETRIES = 5;
+
+/**
+ * Get the queue key for the current user
+ */
+const getQueueKey = (): string => {
+  const userId = getCurrentUserId();
+  if (!userId) {
+    return `${QUEUE_KEY_PREFIX}_temp`;
+  }
+  return `${QUEUE_KEY_PREFIX}_${userId}`;
+};
 
 const generateQueueId = () => {
   try {
@@ -27,29 +40,48 @@ const generateQueueId = () => {
 };
 
 export const addToQueue = (action: QueueItem['action'], payload: unknown) => {
-  const queue: QueueItem[] = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+  const userId = getCurrentUserId();
+  const queueKey = getQueueKey();
+  const queue: QueueItem[] = JSON.parse(localStorage.getItem(queueKey) || '[]');
   const item: QueueItem = {
     id: generateQueueId(),
     action,
     payload,
     timestamp: Date.now(),
-    attempts: 0
+    attempts: 0,
+    userId: userId || undefined,
   };
   queue.push(item);
-  localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+  localStorage.setItem(queueKey, JSON.stringify(queue));
   console.log('Added to offline queue:', item);
 };
 
 export const processQueue = async () => {
   if (!navigator.onLine) return;
-
-  const queue: QueueItem[] = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+  
+  const currentUserId = getCurrentUserId();
+  if (!currentUserId) {
+    console.log('[Queue] No current user, skipping queue processing');
+    return;
+  }
+  
+  const queueKey = getQueueKey();
+  const queue: QueueItem[] = JSON.parse(localStorage.getItem(queueKey) || '[]');
   if (queue.length === 0) return;
 
-  console.log(`Processing ${queue.length} offline items...`);
-  const remainingQueue: QueueItem[] = [];
+  // Filter to only process items for the current user
+  const userQueue = queue.filter(item => !item.userId || item.userId === currentUserId);
+  const otherUserQueue = queue.filter(item => item.userId && item.userId !== currentUserId);
+  
+  if (userQueue.length === 0) {
+    console.log('[Queue] No items for current user');
+    return;
+  }
 
-  for (const item of queue) {
+  console.log(`Processing ${userQueue.length} offline items for user ${currentUserId}...`);
+  const remainingQueue: QueueItem[] = [...otherUserQueue]; // Keep other users' items
+
+  for (const item of userQueue) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const p = item.payload as any;
@@ -105,7 +137,7 @@ export const processQueue = async () => {
     }
   }
 
-  localStorage.setItem(QUEUE_KEY, JSON.stringify(remainingQueue));
+  localStorage.setItem(queueKey, JSON.stringify(remainingQueue));
 };
 
 // Initialize listeners

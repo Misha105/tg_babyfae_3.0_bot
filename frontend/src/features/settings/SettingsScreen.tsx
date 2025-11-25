@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useStore } from '@/store';
+import { useStore, getCurrentUserId } from '@/store';
 import { format } from 'date-fns';
 import { ru, enUS } from 'date-fns/locale';
 import { 
@@ -14,7 +14,6 @@ import { exportUserDataToChat, importUserData as importUserDataApi } from '@/lib
 import { ApiError } from '@/lib/api/client';
 import { addToQueue } from '@/lib/api/queue';
 import { createDateFromInput } from '@/lib/dateUtils';
-import { getTelegramUserId } from '@/lib/telegram/userData';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   star: Star,
@@ -60,7 +59,7 @@ export const SettingsScreen: React.FC = () => {
       };
 
       // Try to send to chat via backend (Best for Telegram Mini Apps)
-      const userId = getTelegramUserId();
+      const userId = getCurrentUserId();
       if (userId) {
           try {
             // Use authenticated API path so Telegram headers are attached (audit finding #5).
@@ -135,7 +134,7 @@ export const SettingsScreen: React.FC = () => {
         throw new Error('Invalid backup file format');
       }
 
-      const userId = getTelegramUserId();
+      const userId = getCurrentUserId();
       if (!userId) {
         throw new Error('User ID missing');
       }
@@ -195,13 +194,14 @@ export const SettingsScreen: React.FC = () => {
     const newEnabled = !settings.notificationsEnabled;
     updateSettings({ notificationsEnabled: newEnabled });
 
-    const userId = getTelegramUserId();
-    const chatId = userId; // For private chats, chat_id is usually the user_id
+    const userId = getCurrentUserId();
 
     if (!userId) {
       console.error('Cannot sync notifications: User ID missing');
       return;
     }
+
+    const chatId = userId; // For private chats, chat_id is usually the user_id
 
     try {
       if (newEnabled) {
@@ -531,7 +531,7 @@ export const SettingsScreen: React.FC = () => {
         onClose={() => setShowClearDataConfirm(false)}
         onConfirm={async () => {
           try {
-            const userId = getTelegramUserId();
+            const userId = getCurrentUserId();
             console.log('Attempting to clear data for user:', userId);
             
             if (userId) {

@@ -1,11 +1,17 @@
 import type { StateCreator } from 'zustand';
 import type { GrowthRecord } from '@/types';
 import { saveGrowthRecord, deleteGrowthRecord } from '@/lib/api/sync';
-import { getTelegramUserId } from '@/lib/telegram/userData';
+import { getCurrentUserId } from '@/store/userContext';
 import { addToQueue } from '@/lib/api/queue';
 
-// Mock user ID
-const getUserId = () => getTelegramUserId() || 12345;
+const getUserId = (): number => {
+  const userId = getCurrentUserId();
+  if (!userId) {
+    console.error('[GrowthSlice] No user ID available');
+    throw new Error('User not authenticated');
+  }
+  return userId;
+};
 
 export interface GrowthSlice {
   growthRecords: GrowthRecord[];

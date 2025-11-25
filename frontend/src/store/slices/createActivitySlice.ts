@@ -1,10 +1,17 @@
 import type { StateCreator } from 'zustand';
 import type { ActivityRecord } from '@/types';
 import { saveActivity, deleteActivity, fetchActivities } from '@/lib/api/sync';
-import { getTelegramUserId } from '@/lib/telegram/userData';
+import { getCurrentUserId } from '@/store/userContext';
 import { addToQueue } from '@/lib/api/queue';
 
-const getUserId = () => getTelegramUserId() || 12345; 
+const getUserId = (): number => {
+  const userId = getCurrentUserId();
+  if (!userId) {
+    console.error('[ActivitySlice] No user ID available');
+    throw new Error('User not authenticated');
+  }
+  return userId;
+}; 
 
 export interface ActivitySlice {
   activities: ActivityRecord[];
