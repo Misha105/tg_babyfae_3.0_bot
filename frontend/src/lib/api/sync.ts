@@ -56,5 +56,9 @@ export const importUserData = async (userId: number, data: ImportData) => {
 };
 
 export const deleteAllUserData = async (userId: number) => {
+  // Ensure userId is a valid number
+  if (!userId || typeof userId !== 'number' || userId <= 0) {
+    throw new Error(`Invalid user ID: ${userId}`);
+  }
   return apiDelete(`/api/user/${userId}`);
 };

@@ -222,6 +222,12 @@ export const useStore = create<AppState>()(
         console.log('Data imported successfully to local store');
       },
       resetAllData: async (userId: number) => {
+        console.log('[Store] resetAllData called with userId:', userId, typeof userId);
+        
+        if (!userId || typeof userId !== 'number' || userId <= 0) {
+          throw new Error(`Invalid user ID for resetAllData: ${userId}`);
+        }
+        
         try {
           await deleteAllUserData(userId);
           

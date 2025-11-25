@@ -532,14 +532,14 @@ export const SettingsScreen: React.FC = () => {
         onConfirm={async () => {
           try {
             const userId = getCurrentUserId();
-            console.log('Attempting to clear data for user:', userId);
+            console.log('Attempting to clear data for user:', userId, typeof userId);
             
-            if (userId) {
+            if (userId && userId > 0) {
               await resetAllData(userId);
               setShowClearDataConfirm(false);
             } else {
-              console.error('User ID not found');
-              alert(t('common.error_generic', 'An error occurred') + ': User ID missing');
+              console.error('User ID not found or invalid:', userId);
+              alert(t('common.error_generic', 'An error occurred') + ': User ID missing or invalid');
             }
           } catch (error) {
             console.error('Failed to clear data', error);
