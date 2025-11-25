@@ -4,7 +4,19 @@ import { saveUserSettings, saveCustomActivity, deleteCustomActivity } from '@/li
 import { getTelegramUserId } from '@/lib/telegram/userData';
 import { addToQueue } from '@/lib/api/queue';
 
-const getUserId = () => getTelegramUserId() || 12345;
+/**
+ * Gets user ID for API calls. In production, returns 0 if not authenticated
+ * which will cause API calls to fail (correct behavior).
+ * Only uses mock ID 12345 in development mode.
+ */
+const getUserId = (): number => {
+  const id = getTelegramUserId();
+  if (id > 0) return id;
+  // Only use fallback in DEV mode
+  if (import.meta.env.DEV) return 12345;
+  console.error('[SettingsSlice] No valid user ID available');
+  return 0;
+};
 
 export interface SettingsSlice {
   settings: Settings;

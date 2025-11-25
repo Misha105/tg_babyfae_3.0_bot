@@ -8,6 +8,29 @@ import { createSleepSlice, type SleepSlice } from './slices/createSleepSlice';
 import { createGrowthSlice, type GrowthSlice } from './slices/createGrowthSlice';
 import { fetchUserData, deleteAllUserData } from '@/lib/api/sync';
 import { processQueue } from '@/lib/api/queue';
+import { getTelegramUserId } from '@/lib/telegram/userData';
+
+/**
+ * Gets the storage key for the current user.
+ * In production, each user has their own storage key to prevent data leakage.
+ * In dev mode, uses a default key.
+ */
+const getStorageKey = (): string => {
+  const userId = getTelegramUserId();
+  if (userId > 0) {
+    return `babyfae-storage-${userId}`;
+  }
+  // Fallback for dev mode or when ID is not yet available
+  if (import.meta.env.DEV) {
+    return 'babyfae-storage-dev';
+  }
+  // In production without valid user ID, use a temp key
+  // This data will be cleared when proper user ID is obtained
+  return 'babyfae-storage-temp';
+};
+
+// Store the current storage key for reference
+const currentStorageKey = getStorageKey();
 
 type AppState = ProfileSlice & ActivitySlice & SettingsSlice & SleepSlice & GrowthSlice & {
   _hasHydrated: boolean;
@@ -85,11 +108,10 @@ export const useStore = create<AppState>()(
             growthRecords: [],
           });
           
-          // Clear persisted storage explicitly if needed, though set() updates it.
-          // But to be safe and clean:
-          localStorage.removeItem('babyfae-storage');
+          // Clear persisted storage explicitly for the current user
+          localStorage.removeItem(currentStorageKey);
           
-          console.log('All data reset successfully');
+          console.log('[Store] All data reset successfully, cleared key:', currentStorageKey);
         } catch (e) {
           console.error('Failed to reset data:', e);
           throw e;
@@ -162,16 +184,17 @@ export const useStore = create<AppState>()(
              set({ growthRecords: mergedGrowth });
           }
 
-          console.log('Synced with server successfully');
+          console.log('[Store] Synced with server successfully for user', userId);
         } catch (e) {
-          console.error('Sync failed:', e);
+          console.error('[Store] Sync failed:', e);
         }
       }
     }),
     {
-      name: 'babyfae-storage',
+      name: currentStorageKey,
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
+        console.log('[Store] Rehydrated from storage key:', currentStorageKey);
         state?.setHasHydrated(true);
       },
       partialize: (state) => ({
@@ -185,4 +208,28 @@ export const useStore = create<AppState>()(
     }
   )
 );
+
+/**
+ * Gets the current storage key being used
+ */
+export const getCurrentStorageKey = (): string => currentStorageKey;
+
+/**
+ * Clears storage for a specific user or all babyfae storage
+ */
+export const clearUserStorage = (userId?: number): void => {
+  if (userId) {
+    localStorage.removeItem(`babyfae-storage-${userId}`);
+  } else {
+    // Clear all babyfae storage keys
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('babyfae-storage')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+  }
+};
 

@@ -61,7 +61,7 @@ export const SettingsScreen: React.FC = () => {
 
       // Try to send to chat via backend (Best for Telegram Mini Apps)
       const userId = getTelegramUserId();
-      if (userId) {
+      if (userId > 0) {
           try {
             // Use authenticated API path so Telegram headers are attached (audit finding #5).
             await exportUserDataToChat(userId, {
@@ -136,8 +136,8 @@ export const SettingsScreen: React.FC = () => {
       }
 
       const userId = getTelegramUserId();
-      if (!userId) {
-        throw new Error('User ID missing');
+      if (userId <= 0) {
+        throw new Error('User ID not available. Please open the app through Telegram.');
       }
 
       // Send backup to the backend so data stays consistent across devices (audit finding #4).
@@ -198,8 +198,8 @@ export const SettingsScreen: React.FC = () => {
     const userId = getTelegramUserId();
     const chatId = userId; // For private chats, chat_id is usually the user_id
 
-    if (!userId) {
-      console.error('Cannot sync notifications: User ID missing');
+    if (userId <= 0) {
+      console.error('Cannot sync notifications: User ID not available');
       return;
     }
 
@@ -534,12 +534,12 @@ export const SettingsScreen: React.FC = () => {
             const userId = getTelegramUserId();
             console.log('Attempting to clear data for user:', userId);
             
-            if (userId) {
+            if (userId > 0) {
               await resetAllData(userId);
               setShowClearDataConfirm(false);
             } else {
-              console.error('User ID not found');
-              alert(t('common.error_generic', 'An error occurred') + ': User ID missing');
+              console.error('User ID not available');
+              alert(t('common.error_generic', 'An error occurred') + ': User ID not available');
             }
           } catch (error) {
             console.error('Failed to clear data', error);
