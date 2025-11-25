@@ -1,7 +1,6 @@
 import { syncSchedule, deleteSchedule } from './notifications';
 import { saveActivity, deleteActivity, saveGrowthRecord, deleteGrowthRecord, saveUserProfile, saveUserSettings, saveCustomActivity, deleteCustomActivity } from './sync';
 import { ApiError } from './client';
-import { getTelegramUserId } from '@/lib/telegram/userData';
 
 interface QueueItem {
   id: string;
@@ -12,21 +11,7 @@ interface QueueItem {
   lastError?: string;
 }
 
-/**
- * Gets the queue key for the current user.
- * Each user has their own queue to prevent data mixing.
- */
-const getQueueKey = (): string => {
-  const userId = getTelegramUserId();
-  if (userId > 0) {
-    return `babyfae_offline_queue_${userId}`;
-  }
-  if (import.meta.env.DEV) {
-    return 'babyfae_offline_queue_dev';
-  }
-  return 'babyfae_offline_queue_temp';
-};
-
+const QUEUE_KEY = 'babyfae_offline_queue';
 // Constrain retries/fallback IDs to stop silent infinite loops (audit finding #6).
 const MAX_QUEUE_RETRIES = 5;
 
@@ -42,8 +27,7 @@ const generateQueueId = () => {
 };
 
 export const addToQueue = (action: QueueItem['action'], payload: unknown) => {
-  const queueKey = getQueueKey();
-  const queue: QueueItem[] = JSON.parse(localStorage.getItem(queueKey) || '[]');
+  const queue: QueueItem[] = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
   const item: QueueItem = {
     id: generateQueueId(),
     action,
@@ -52,18 +36,17 @@ export const addToQueue = (action: QueueItem['action'], payload: unknown) => {
     attempts: 0
   };
   queue.push(item);
-  localStorage.setItem(queueKey, JSON.stringify(queue));
-  console.log('[Queue] Added to offline queue:', item.action, 'key:', queueKey);
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+  console.log('Added to offline queue:', item);
 };
 
 export const processQueue = async () => {
   if (!navigator.onLine) return;
 
-  const queueKey = getQueueKey();
-  const queue: QueueItem[] = JSON.parse(localStorage.getItem(queueKey) || '[]');
+  const queue: QueueItem[] = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
   if (queue.length === 0) return;
 
-  console.log(`[Queue] Processing ${queue.length} offline items from ${queueKey}...`);
+  console.log(`Processing ${queue.length} offline items...`);
   const remainingQueue: QueueItem[] = [];
 
   for (const item of queue) {
@@ -114,15 +97,15 @@ export const processQueue = async () => {
       };
 
       if (shouldDrop) {
-        console.error('[Queue] Dropping queue item after repeated failures', nextItem);
+        console.error('Dropping queue item after repeated failures', nextItem);
       } else {
-        console.warn('[Queue] Retrying queue item later', nextItem);
+        console.warn('Retrying queue item later', nextItem);
         remainingQueue.push(nextItem);
       }
     }
   }
 
-  localStorage.setItem(queueKey, JSON.stringify(remainingQueue));
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(remainingQueue));
 };
 
 // Initialize listeners

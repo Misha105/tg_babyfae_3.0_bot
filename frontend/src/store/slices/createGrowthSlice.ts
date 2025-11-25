@@ -4,19 +4,8 @@ import { saveGrowthRecord, deleteGrowthRecord } from '@/lib/api/sync';
 import { getTelegramUserId } from '@/lib/telegram/userData';
 import { addToQueue } from '@/lib/api/queue';
 
-/**
- * Gets user ID for API calls. In production, returns 0 if not authenticated
- * which will cause API calls to fail (correct behavior).
- * Only uses mock ID 12345 in development mode.
- */
-const getUserId = (): number => {
-  const id = getTelegramUserId();
-  if (id > 0) return id;
-  // Only use fallback in DEV mode
-  if (import.meta.env.DEV) return 12345;
-  console.error('[GrowthSlice] No valid user ID available');
-  return 0;
-};
+// Mock user ID
+const getUserId = () => getTelegramUserId() || 12345;
 
 export interface GrowthSlice {
   growthRecords: GrowthRecord[];

@@ -61,7 +61,7 @@ export const OnboardingScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center px-4 pt-[calc(1rem+var(--tg-safe-area-top))] pb-[calc(1rem+var(--tg-safe-area-bottom))] bg-slate-950 relative overflow-x-hidden">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center px-4 pt-[calc(1rem+var(--tg-safe-area-top))] pb-[calc(1rem+var(--tg-safe-area-bottom))] bg-slate-950 relative overflow-x-hidden">
       {/* Ambient Background Effect */}
       <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[150%] h-[60%] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none" />
       
@@ -160,14 +160,14 @@ export const OnboardingScreen: React.FC = () => {
                 id="birthDate"
                 value={birthDate}
                 onChange={(e) => setBirthDate(e.target.value)}
-                className="block w-full pl-11 pr-4 py-3 bg-slate-950/50 border border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 text-white placeholder-slate-600 transition-all outline-none scheme-dark"
+                className="block w-full pl-11 pr-4 py-3 bg-slate-950/50 border border-slate-700 rounded-2xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 text-white placeholder-slate-600 transition-all outline-none [color-scheme:dark]"
               />
             </div>
           </div>
 
           <button
             type="submit"
-            className="w-full flex items-center justify-center space-x-2 bg-linear-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3.5 rounded-2xl transition-all transform active:scale-[0.98] shadow-lg shadow-blue-500/25 mt-4"
+            className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-3.5 rounded-2xl transition-all transform active:scale-[0.98] shadow-lg shadow-blue-500/25 mt-4"
           >
             <span>{t('onboarding.submit')}</span>
             <ChevronRight size={20} />
