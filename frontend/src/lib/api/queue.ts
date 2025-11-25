@@ -1,7 +1,7 @@
 import { syncSchedule, deleteSchedule } from './notifications';
 import { saveActivity, deleteActivity, saveGrowthRecord, deleteGrowthRecord, saveUserProfile, saveUserSettings, saveCustomActivity, deleteCustomActivity } from './sync';
 import { ApiError } from './client';
-import { getSafeUserId } from '@/lib/telegram/userData';
+import { getTelegramUserId } from '@/lib/telegram/userData';
 
 interface QueueItem {
   id: string;
@@ -17,7 +17,7 @@ interface QueueItem {
  * Each user has their own queue to prevent data mixing.
  */
 const getQueueKey = (): string => {
-  const userId = getSafeUserId();
+  const userId = getTelegramUserId();
   if (userId > 0) {
     return `babyfae_offline_queue_${userId}`;
   }
@@ -41,23 +41,9 @@ const generateQueueId = () => {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-const readQueue = (queueKey: string): QueueItem[] => {
-  if (typeof window === 'undefined') return [];
-  try {
-    return JSON.parse(window.localStorage?.getItem(queueKey) || '[]');
-  } catch {
-    return [];
-  }
-};
-
-const writeQueue = (queueKey: string, queue: QueueItem[]) => {
-  if (typeof window === 'undefined') return;
-  window.localStorage?.setItem(queueKey, JSON.stringify(queue));
-};
-
 export const addToQueue = (action: QueueItem['action'], payload: unknown) => {
   const queueKey = getQueueKey();
-  const queue = readQueue(queueKey);
+  const queue: QueueItem[] = JSON.parse(localStorage.getItem(queueKey) || '[]');
   const item: QueueItem = {
     id: generateQueueId(),
     action,
@@ -66,7 +52,7 @@ export const addToQueue = (action: QueueItem['action'], payload: unknown) => {
     attempts: 0
   };
   queue.push(item);
-  writeQueue(queueKey, queue);
+  localStorage.setItem(queueKey, JSON.stringify(queue));
   console.log('[Queue] Added to offline queue:', item.action, 'key:', queueKey);
 };
 
@@ -74,7 +60,7 @@ export const processQueue = async () => {
   if (!navigator.onLine) return;
 
   const queueKey = getQueueKey();
-  const queue = readQueue(queueKey);
+  const queue: QueueItem[] = JSON.parse(localStorage.getItem(queueKey) || '[]');
   if (queue.length === 0) return;
 
   console.log(`[Queue] Processing ${queue.length} offline items from ${queueKey}...`);
@@ -136,20 +122,7 @@ export const processQueue = async () => {
     }
   }
 
-  writeQueue(queueKey, remainingQueue);
-};
-
-export const hasPendingActivity = (activityId: string): boolean => {
-  if (!activityId || typeof window === 'undefined') {
-    return false;
-  }
-  const queueKey = getQueueKey();
-  const queue = readQueue(queueKey);
-  return queue.some((item) => {
-    if (item.action !== 'saveActivity') return false;
-    const payload = item.payload as { activity?: { id?: string } };
-    return payload?.activity?.id === activityId;
-  });
+  localStorage.setItem(queueKey, JSON.stringify(remainingQueue));
 };
 
 // Initialize listeners

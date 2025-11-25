@@ -1,20 +1,21 @@
 import type { StateCreator } from 'zustand';
 import type { GrowthRecord } from '@/types';
 import { saveGrowthRecord, deleteGrowthRecord } from '@/lib/api/sync';
-import { getSafeUserId } from '@/lib/telegram/userData';
+import { getTelegramUserId } from '@/lib/telegram/userData';
 import { addToQueue } from '@/lib/api/queue';
-import { toast } from '@/lib/toast';
 
-const notifyGrowthSyncFailure = (context: string, error?: unknown) => {
-  const offline = typeof navigator !== 'undefined' && !navigator.onLine;
-  if (offline) {
-    toast.info(`${context} сохранены офлайн, синхронизация позже.`);
-  } else {
-    toast.error(`Не удалось синхронизировать ${context}.`);
-  }
-  if (error) {
-    console.error('[GrowthSlice] Sync failed', error);
-  }
+/**
+ * Gets user ID for API calls. In production, returns 0 if not authenticated
+ * which will cause API calls to fail (correct behavior).
+ * Only uses mock ID 12345 in development mode.
+ */
+const getUserId = (): number => {
+  const id = getTelegramUserId();
+  if (id > 0) return id;
+  // Only use fallback in DEV mode
+  if (import.meta.env.DEV) return 12345;
+  console.error('[GrowthSlice] No valid user ID available');
+  return 0;
 };
 
 export interface GrowthSlice {
@@ -30,14 +31,9 @@ export const createGrowthSlice: StateCreator<GrowthSlice> = (set) => ({
     set((state) => ({ 
       growthRecords: [record, ...state.growthRecords] 
     }));
-    const userId = getSafeUserId();
-    if (userId <= 0) {
-      toast.error('Не удалось определить пользователя Telegram.');
-      return;
-    }
-    saveGrowthRecord(userId, record).catch((error) => {
+    const userId = getUserId();
+    saveGrowthRecord(userId, record).catch(() => {
       addToQueue('saveGrowth', { userId, record });
-      notifyGrowthSyncFailure('ростовые данные', error);
     });
   },
   updateGrowthRecord: (id, updates) => {
@@ -45,14 +41,9 @@ export const createGrowthSlice: StateCreator<GrowthSlice> = (set) => ({
       const updatedRecords = state.growthRecords.map(r => r.id === id ? { ...r, ...updates } : r);
       const updatedRecord = updatedRecords.find(r => r.id === id);
       if (updatedRecord) {
-        const userId = getSafeUserId();
-        if (userId <= 0) {
-          toast.error('Не удалось определить пользователя Telegram.');
-          return { growthRecords: updatedRecords };
-        }
-        saveGrowthRecord(userId, updatedRecord).catch((error) => {
+        const userId = getUserId();
+        saveGrowthRecord(userId, updatedRecord).catch(() => {
           addToQueue('saveGrowth', { userId, record: updatedRecord });
-          notifyGrowthSyncFailure('ростовые данные', error);
         });
       }
       return { growthRecords: updatedRecords };
@@ -62,14 +53,9 @@ export const createGrowthSlice: StateCreator<GrowthSlice> = (set) => ({
     set((state) => ({ 
       growthRecords: state.growthRecords.filter(r => r.id !== id) 
     }));
-    const userId = getSafeUserId();
-    if (userId <= 0) {
-      toast.error('Не удалось определить пользователя Telegram.');
-      return;
-    }
-    deleteGrowthRecord(userId, id).catch((error) => {
+    const userId = getUserId();
+    deleteGrowthRecord(userId, id).catch(() => {
       addToQueue('deleteGrowth', { userId, recordId: id });
-      notifyGrowthSyncFailure('удаление записи роста', error);
     });
   },
 });

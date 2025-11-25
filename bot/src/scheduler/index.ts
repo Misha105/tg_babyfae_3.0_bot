@@ -3,7 +3,6 @@ import TelegramBot from 'node-telegram-bot-api';
 import { dbAsync } from '../database/db-helper';
 import { getLocale } from '../locales';
 import type { NotificationScheduleRow } from '../types/db';
-import { logger } from '../utils/logger';
 
 interface ScheduleData {
   intervalMinutes?: number;
@@ -16,7 +15,7 @@ let isProcessingNotifications = false;
 export const initScheduler = (bot: TelegramBot) => {
   cron.schedule('* * * * *', async () => {
     if (isProcessingNotifications) {
-      logger.warn('Notification scheduler still running, skipping this tick');
+      console.warn('Notification scheduler still running, skipping this tick');
       return;
     }
 
@@ -27,7 +26,7 @@ export const initScheduler = (bot: TelegramBot) => {
       isProcessingNotifications = false;
     }
   });
-  logger.info('Scheduler initialized');
+  console.log('Scheduler initialized');
 };
 
 const checkNotifications = async (bot: TelegramBot) => {
@@ -41,7 +40,7 @@ const checkNotifications = async (bot: TelegramBot) => {
       try {
         scheduleData = JSON.parse(row.schedule_data);
       } catch (e) {
-        logger.error('Error parsing schedule_data for notification', { scheduleId: row.id, error: e });
+        console.error('Error parsing schedule_data for notification', row.id, e);
         continue; // Skip malformed data
       }
 
@@ -57,26 +56,17 @@ const checkNotifications = async (bot: TelegramBot) => {
         continue; // Another worker already advanced this schedule
       }
 
-      if (row.user_id !== row.chat_id) {
-        logger.warn('Suspicious notification schedule detected', {
-          scheduleId: row.id,
-          userId: row.user_id,
-          chatId: row.chat_id
-        });
-        continue;
-      }
-
       try {
         const message = getNotificationMessage(row, scheduleData.language);
         await bot.sendMessage(row.chat_id, message);
       } catch (e) {
-        logger.error('Failed to send scheduled message', { scheduleId: row.id, error: e });
+        console.error('Failed to send message', row.id, e);
         // Roll back next_run so the notification can retry soon
         await dbAsync.run('UPDATE notification_schedules SET next_run = ? WHERE id = ?', [row.next_run, row.id]);
       }
     }
   } catch (err) {
-    logger.error('Error querying notifications', { error: err });
+    console.error('Error querying notifications', err);
   }
 };
 

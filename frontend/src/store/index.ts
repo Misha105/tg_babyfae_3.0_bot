@@ -7,7 +7,7 @@ import { createSettingsSlice, type SettingsSlice } from './slices/createSettings
 import { createSleepSlice, type SleepSlice } from './slices/createSleepSlice';
 import { createGrowthSlice, type GrowthSlice } from './slices/createGrowthSlice';
 import { fetchUserData, deleteAllUserData } from '@/lib/api/sync';
-import { processQueue, hasPendingActivity } from '@/lib/api/queue';
+import { processQueue } from '@/lib/api/queue';
 import { getTelegramUserId } from '@/lib/telegram/userData';
 
 /**
@@ -142,7 +142,7 @@ export const useStore = create<AppState>()(
             
             // Add local activities that are missing from server
             for (const localActivity of currentActivities) {
-              if (!serverActivitiesMap.has(localActivity.id) && hasPendingActivity(localActivity.id)) {
+              if (!serverActivitiesMap.has(localActivity.id)) {
                 mergedActivities.push(localActivity);
               }
             }

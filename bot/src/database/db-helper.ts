@@ -5,28 +5,27 @@ import { db } from './init';
  * Based on the async-mutex pattern
  */
 class Mutex {
-  private _queue: Array<() => void> = [];
+  private _queue: Promise<void> = Promise.resolve();
   private _locked = false;
 
-  acquire(): Promise<() => void> {
-    return new Promise((resolve) => {
-      const tryAcquire = () => {
-        if (!this._locked) {
-          this._locked = true;
-          resolve(() => {
-            this._locked = false;
-            const next = this._queue.shift();
-            if (next) {
-              next();
-            }
-          });
-        } else {
-          this._queue.push(tryAcquire);
-        }
-      };
+  async acquire(): Promise<() => void> {
+    // Wait for the current lock to be released
+    while (this._locked) {
+      await this._queue;
+    }
 
-      tryAcquire();
+    // Acquire the lock
+    this._locked = true;
+    
+    let release: () => void;
+    this._queue = new Promise<void>(resolve => {
+      release = () => {
+        this._locked = false;
+        resolve();
+      };
     });
+
+    return release!;
   }
 
   async runExclusive<T>(task: () => Promise<T>): Promise<T> {
