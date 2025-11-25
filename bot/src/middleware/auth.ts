@@ -150,6 +150,7 @@ export function authenticateTelegramUser(req: Request, res: Response, next: Next
 
 /**
  * Middleware to verify that the authenticated user matches the requested user ID
+ * Telegram user IDs can exceed 32-bit range, supporting up to Number.MAX_SAFE_INTEGER
  */
 export function verifyUserAccess(req: Request, res: Response, next: NextFunction) {
   const requestedUserId = parseInt(req.params.id);
@@ -159,7 +160,7 @@ export function verifyUserAccess(req: Request, res: Response, next: NextFunction
     return res.status(401).json({ error: 'Unauthorized: User not authenticated' });
   }
   
-  if (isNaN(requestedUserId) || requestedUserId <= 0 || requestedUserId > 2147483647) {
+  if (isNaN(requestedUserId) || !Number.isFinite(requestedUserId) || requestedUserId <= 0 || requestedUserId > Number.MAX_SAFE_INTEGER) {
     return res.status(400).json({ error: 'Invalid user ID' });
   }
   

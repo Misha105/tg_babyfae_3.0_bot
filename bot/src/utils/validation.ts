@@ -15,15 +15,18 @@ export interface ValidationResult {
 
 /**
  * Validates Telegram user ID
+ * Telegram user IDs can be up to 52 bits (safe integer limit in JavaScript)
  */
 export function validateUserId(id: unknown): ValidationResult {
-  const userId = parseInt(String(id));
+  const userId = typeof id === 'number' ? id : parseInt(String(id));
   
-  if (isNaN(userId)) {
-    return { valid: false, error: 'User ID must be a number' };
+  if (isNaN(userId) || !Number.isFinite(userId)) {
+    return { valid: false, error: 'User ID must be a valid number' };
   }
   
-  if (userId <= 0 || userId > 2147483647) {
+  // Telegram user IDs are positive 64-bit integers
+  // JavaScript safely handles integers up to 2^53 - 1 (Number.MAX_SAFE_INTEGER = 9007199254740991)
+  if (userId <= 0 || userId > Number.MAX_SAFE_INTEGER) {
     return { valid: false, error: 'Invalid user ID range' };
   }
   
