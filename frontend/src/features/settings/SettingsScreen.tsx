@@ -3,7 +3,7 @@ import { useStore } from '@/store';
 import { format } from 'date-fns';
 import { ru, enUS } from 'date-fns/locale';
 import { 
-  User, Calendar, Plus, Trash2, Star, Heart, Sun, Cloud, Music, Book, Bath, Utensils, 
+  User, Calendar, Plus, Trash2, Star,
   Bell, Globe, ChevronRight, LogOut, Edit2, X, Download, Upload
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -15,17 +15,7 @@ import { ApiError } from '@/lib/api/client';
 import { addToQueue } from '@/lib/api/queue';
 import { createDateFromInput } from '@/lib/dateUtils';
 import { getTelegramUserId } from '@/lib/telegram/userData';
-
-const ICON_MAP: Record<string, React.ElementType> = {
-  star: Star,
-  heart: Heart,
-  sun: Sun,
-  cloud: Cloud,
-  music: Music,
-  book: Book,
-  bath: Bath,
-  utensils: Utensils,
-};
+import { CUSTOM_ACTIVITY_ICONS } from '@/lib/constants';
 
 export const SettingsScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -423,7 +413,7 @@ export const SettingsScreen: React.FC = () => {
 
         <div className="grid grid-cols-2 gap-3">
           {customActivities.map((activity) => {
-            const Icon = ICON_MAP[activity.icon] || Star;
+            const Icon = CUSTOM_ACTIVITY_ICONS[activity.icon] || Star;
             return (
               <div key={activity.id} className="bg-slate-900/30 border border-slate-800/50 rounded-2xl p-4 flex flex-col gap-3 group hover:bg-slate-900/50 transition-colors relative">
                 <button

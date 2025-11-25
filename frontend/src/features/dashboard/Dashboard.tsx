@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Milk, Pill, Moon, Star, Heart, Sun, Cloud, Music, Book, Bath, Utensils, Droplets, Plus, X, type LucideIcon } from 'lucide-react';
+import { Milk, Pill, Moon, Star, Droplets, Plus, X } from 'lucide-react';
 import { ActivityButton } from './ActivityButton';
 import { useStore } from '@/store';
 import { formatDistanceToNow } from 'date-fns';
@@ -11,17 +11,7 @@ import { ActivityInputModal } from '@/components/ActivityInputModal';
 import { CustomActivityForm } from '../settings/CustomActivityForm';
 import { SleepStartModal } from '@/components/SleepStartModal';
 import { v4 as uuidv4 } from 'uuid';
-
-const ICON_MAP: Record<string, LucideIcon> = {
-  star: Star,
-  heart: Heart,
-  sun: Sun,
-  cloud: Cloud,
-  music: Music,
-  book: Book,
-  bath: Bath,
-  utensils: Utensils,
-};
+import { CUSTOM_ACTIVITY_ICONS } from '@/lib/constants';
 
 export const Dashboard: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -38,20 +28,15 @@ export const Dashboard: React.FC = () => {
   const [showSleepModal, setShowSleepModal] = useState(false);
 
   const getLastActivityTime = (type: ActivityType, subType?: string) => {
-    const relevantActivities = activities.filter((a) => {
+    const last = activities.find((activity) => {
       if (type === 'custom') {
-        return a.type === 'custom' && a.subType === subType;
+        return activity.type === 'custom' && activity.subType === subType;
       }
-      return a.type === type;
+      return activity.type === type;
     });
-    
-    if (relevantActivities.length === 0) return undefined;
-    
-    // Find the most recent activity by timestamp
-    const last = relevantActivities.reduce((prev, current) => {
-      return (new Date(prev.timestamp) > new Date(current.timestamp)) ? prev : current;
-    });
-    
+
+    if (!last) return undefined;
+
     return formatDistanceToNow(new Date(last.timestamp), {
       addSuffix: true,
       locale: i18n.language === 'ru' ? ru : enUS,
@@ -154,7 +139,7 @@ export const Dashboard: React.FC = () => {
       />
       
       {customActivities.map((activity) => {
-        const Icon = ICON_MAP[activity.icon] || Star;
+        const Icon = CUSTOM_ACTIVITY_ICONS[activity.icon] || Star;
         
         return (
           <ActivityButton
@@ -179,7 +164,7 @@ export const Dashboard: React.FC = () => {
 
     {/* Custom Activity Form Modal */}
     {showCustomActivityForm && (
-      <div className="fixed inset-0 z-[100] overflow-y-auto">
+      <div className="fixed inset-0 z-100 overflow-y-auto">
         <div 
           className="fixed inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" 
           onClick={() => setShowCustomActivityForm(false)} 

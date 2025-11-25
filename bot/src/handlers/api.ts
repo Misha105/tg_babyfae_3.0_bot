@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { dbAsync } from '../database/db-helper';
 import { validateUserId, validateJsonSize } from '../utils/validation';
 import { upsertRecord } from '../database/db-utils';
+import { logger } from '../utils/logger';
 
 export const updateSchedule = async (req: Request, res: Response) => {
   const { id, user_id, chat_id, type, schedule_data, next_run, enabled } = req.body;
@@ -27,7 +28,10 @@ export const updateSchedule = async (req: Request, res: Response) => {
 
   // Verify authenticated user matches user_id
   if (req.telegramUser && req.telegramUser.id !== user_id) {
-    console.warn(`Access denied: User ${req.telegramUser.id} attempted to create schedule for user ${user_id}`);
+    logger.warn('Access denied: schedule create attempt for another user', {
+      requester: req.telegramUser.id,
+      targetUser: user_id
+    });
     return res.status(403).json({ error: 'Forbidden: Cannot create schedule for another user' });
   }
 
@@ -54,15 +58,15 @@ export const updateSchedule = async (req: Request, res: Response) => {
     );
     
     if (!result.success) {
-      console.warn(`Schedule ID conflict: User ${user_id} attempted to modify schedule ${id}`);
+      logger.warn('Schedule ID conflict detected', { userId: user_id, scheduleId: id });
       return res.status(403).json({ error: result.error });
     }
 
-    console.log(`Schedule ${id} updated for user ${user_id}`);
+    logger.info('Schedule updated', { scheduleId: id, userId: user_id });
     res.json({ message: 'Schedule updated', id });
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Database error in updateSchedule:', errorMessage);
+    logger.error('Database error in updateSchedule', { error: errorMessage, scheduleId: id });
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -81,7 +85,10 @@ export const deleteSchedule = async (req: Request, res: Response) => {
 
   // Verify authenticated user matches user_id
   if (req.telegramUser && req.telegramUser.id !== user_id) {
-    console.warn(`Access denied: User ${req.telegramUser.id} attempted to delete schedule for user ${user_id}`);
+    logger.warn('Access denied: schedule delete attempt for another user', {
+      requester: req.telegramUser.id,
+      targetUser: user_id
+    });
     return res.status(403).json({ error: 'Forbidden: Cannot delete schedule for another user' });
   }
 
@@ -89,11 +96,11 @@ export const deleteSchedule = async (req: Request, res: Response) => {
   
   try {
     const result = await dbAsync.run(sql, [id, user_id]);
-    console.log(`Schedule ${id} deleted for user ${user_id}, rows affected: ${result.changes}`);
+    logger.info('Schedule deleted', { scheduleId: id, userId: user_id, rows: result.changes });
     res.json({ message: 'Schedule deleted', changes: result.changes });
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Database error in deleteSchedule:', errorMessage);
+    logger.error('Database error in deleteSchedule', { error: errorMessage, scheduleId: id });
     res.status(500).json({ error: 'Internal server error' });
   }
 };

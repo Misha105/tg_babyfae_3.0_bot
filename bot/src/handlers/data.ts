@@ -19,13 +19,32 @@ import type { UserRow, ActivityRow, CustomActivityRow, GrowthRecordRow, Notifica
 // Limit import payloads to reduce DoS risk and enforce audit finding #2 safeguards.
 const MAX_IMPORT_RECORDS = 5000;
 
-// Safe JSON parse helper
+const BLOCKED_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+
+const sanitizeValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeValue);
+  }
+  if (value && typeof value === 'object') {
+    const input = value as Record<string, unknown>;
+    const clean: Record<string, unknown> = {};
+    for (const key of Object.keys(input)) {
+      if (BLOCKED_KEYS.has(key)) continue;
+      clean[key] = sanitizeValue(input[key]);
+    }
+    return clean;
+  }
+  return value;
+};
+
+// Safe JSON parse helper with prototype pollution guard
 const safeJsonParse = <T = unknown>(data: string | null, fallback: T | null = null): T | null => {
   if (!data) return fallback;
   try {
-    return JSON.parse(data) as T;
+    const parsed = JSON.parse(data) as T;
+    return sanitizeValue(parsed) as T;
   } catch (e) {
-    console.error('JSON Parse Error:', e);
+    logger.error('JSON Parse Error', { error: e });
     return fallback;
   }
 };
@@ -100,7 +119,7 @@ export const saveUserProfile = async (req: Request, res: Response) => {
       ON CONFLICT(telegram_id) DO UPDATE SET profile_data = excluded.profile_data
     `;
     await dbAsync.run(sql, [telegramId, JSON.stringify(profile)]);
-    console.log(`Profile saved for user ${telegramId}`);
+    logger.info('Profile saved', { userId: telegramId });
     res.json({ success: true });
   } catch (err: unknown) {
     logger.error('Error saving profile', { error: err, userId: telegramId });
@@ -133,7 +152,7 @@ export const saveUserSettings = async (req: Request, res: Response) => {
       ON CONFLICT(telegram_id) DO UPDATE SET settings_data = excluded.settings_data
     `;
     await dbAsync.run(sql, [telegramId, JSON.stringify(settings)]);
-    console.log(`Settings saved for user ${telegramId}`);
+    logger.info('Settings saved', { userId: telegramId });
     res.json({ success: true });
   } catch (err: unknown) {
     logger.error('Error saving settings', { error: err, userId: telegramId });
@@ -168,7 +187,7 @@ export const saveActivity = async (req: Request, res: Response) => {
     );
 
     if (!result.success) {
-      console.warn(`Activity ID conflict: User ${telegramId} attempted to modify activity ${activity.id}`);
+      logger.warn('Activity ID conflict detected', { userId: telegramId, activityId: activity.id });
       return res.status(403).json({ error: result.error });
     }
 
@@ -194,7 +213,7 @@ export const deleteActivity = async (req: Request, res: Response) => {
 
   try {
     const result = await dbAsync.run('DELETE FROM activities WHERE id = ? AND telegram_id = ?', [activityId, telegramId]);
-    console.log(`Activity ${activityId} deleted for user ${telegramId}, rows affected: ${result.changes}`);
+    logger.info('Activity deleted', { userId: telegramId, activityId, rows: result.changes });
     res.json({ success: true });
   } catch (err: unknown) {
     logger.error('Error deleting activity', { error: err, userId: telegramId });
@@ -229,7 +248,7 @@ export const saveCustomActivity = async (req: Request, res: Response) => {
     );
 
     if (!result.success) {
-      console.warn(`Custom activity ID conflict: User ${telegramId} attempted to modify custom activity ${customActivity.id}`);
+      logger.warn('Custom activity ID conflict detected', { userId: telegramId, customActivityId: customActivity.id });
       return res.status(403).json({ error: result.error });
     }
 
@@ -281,7 +300,7 @@ export const saveGrowthRecord = async (req: Request, res: Response) => {
     );
 
     if (!result.success) {
-      console.warn(`Growth record ID conflict: User ${telegramId} attempted to modify growth record ${record.id}`);
+      logger.warn('Growth record ID conflict detected', { userId: telegramId, recordId: record.id });
       return res.status(403).json({ error: result.error });
     }
 

@@ -2,6 +2,51 @@ import { retrieveLaunchParams } from '@telegram-apps/sdk-react';
 
 // Cache the user ID to avoid repeated parsing
 let cachedUserId: number | null = null;
+let cachedDevUserId: number | null = null;
+
+const DEV_ID_STORAGE_KEY = 'babyfae_dev_user_id';
+const DEV_ID_MIN = 100000;
+const DEV_ID_MAX = 999999;
+
+const readStoredDevId = (): number | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = window.localStorage?.getItem(DEV_ID_STORAGE_KEY) || window.sessionStorage?.getItem(DEV_ID_STORAGE_KEY);
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+  } catch {
+    // Storage may be unavailable; ignore
+  }
+  return null;
+};
+
+const persistDevId = (id: number) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.setItem(DEV_ID_STORAGE_KEY, String(id));
+    window.sessionStorage?.setItem(DEV_ID_STORAGE_KEY, String(id));
+  } catch {
+    // Ignore storage failures in dev
+  }
+};
+
+const generateDevUserId = (): number => {
+  const envValue = parseInt(import.meta.env.VITE_DEV_USER_ID || '', 10);
+  if (Number.isFinite(envValue) && envValue > 0) {
+    return envValue;
+  }
+
+  const stored = readStoredDevId();
+  if (stored) {
+    return stored;
+  }
+
+  const randomId = Math.floor(Math.random() * (DEV_ID_MAX - DEV_ID_MIN + 1)) + DEV_ID_MIN;
+  persistDevId(randomId);
+  return randomId;
+};
 
 /**
  * Gets the Telegram User ID from multiple sources.
@@ -77,8 +122,12 @@ export const getTelegramUserId = (): number => {
   
   // 5. Fallback for development/browser testing if not in Telegram
   if (!userId && import.meta.env.DEV) {
-    console.warn('[TG Auth] Running in dev mode without Telegram context, using mock ID 12345');
-    userId = 12345;
+    if (!cachedDevUserId) {
+      cachedDevUserId = generateDevUserId();
+      persistDevId(cachedDevUserId);
+    }
+    userId = cachedDevUserId;
+    console.warn('[TG Auth] Running in dev mode without Telegram context, using mock ID', userId);
   }
 
   // Cache and return
@@ -105,6 +154,7 @@ export const getTelegramUserId = (): number => {
  */
 export const clearUserIdCache = (): void => {
   cachedUserId = null;
+  cachedDevUserId = null;
 };
 
 /**
@@ -113,4 +163,23 @@ export const clearUserIdCache = (): void => {
  */
 export const getCachedUserId = (): number => {
   return cachedUserId || 0;
+};
+
+/**
+ * Returns a user ID guaranteed to be > 0 in development.
+ * In production, falls back to 0 so callers can surface auth errors.
+ */
+export const getSafeUserId = (): number => {
+  const userId = getTelegramUserId();
+  if (userId > 0) {
+    return userId;
+  }
+  if (import.meta.env.DEV) {
+    if (!cachedDevUserId) {
+      cachedDevUserId = generateDevUserId();
+      persistDevId(cachedDevUserId);
+    }
+    return cachedDevUserId;
+  }
+  return 0;
 };

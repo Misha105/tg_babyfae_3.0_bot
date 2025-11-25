@@ -7,6 +7,7 @@ const MAX_STRING_LENGTH = 1000;
 const MAX_NOTES_LENGTH = 300;
 const MAX_MEDICATION_NAME_LENGTH = 50;
 const MAX_CUSTOM_ACTIVITY_NAME_LENGTH = 50;
+const MAX_ID_LENGTH = 100;
 
 export interface ValidationResult {
   valid: boolean;
@@ -85,8 +86,8 @@ export function validateActivity(activity: unknown): ValidationResult {
   const act = activity as Record<string, unknown>;
   
   // Validate required fields
-  if (!act.id || typeof act.id !== 'string') {
-    return { valid: false, error: 'Activity ID is required and must be a string' };
+  if (!act.id || typeof act.id !== 'string' || act.id.length > MAX_ID_LENGTH) {
+    return { valid: false, error: `Activity ID is required, must be a string, and max ${MAX_ID_LENGTH} chars` };
   }
   
   if (!act.type || typeof act.type !== 'string') {
@@ -140,8 +141,8 @@ export function validateCustomActivity(customActivity: unknown): ValidationResul
   
   const ca = customActivity as Record<string, unknown>;
   
-  if (!ca.id || typeof ca.id !== 'string') {
-    return { valid: false, error: 'Custom activity ID is required and must be a string' };
+  if (!ca.id || typeof ca.id !== 'string' || ca.id.length > MAX_ID_LENGTH) {
+    return { valid: false, error: `Custom activity ID is required, must be a string, and max ${MAX_ID_LENGTH} chars` };
   }
   
   if (!ca.name || typeof ca.name !== 'string') {
@@ -164,8 +165,8 @@ export function validateGrowthRecord(record: unknown): ValidationResult {
   
   const rec = record as Record<string, unknown>;
   
-  if (!rec.id || typeof rec.id !== 'string') {
-    return { valid: false, error: 'Growth record ID is required and must be a string' };
+  if (!rec.id || typeof rec.id !== 'string' || rec.id.length > MAX_ID_LENGTH) {
+    return { valid: false, error: `Growth record ID is required, must be a string, and max ${MAX_ID_LENGTH} chars` };
   }
   
   if (!rec.date || typeof rec.date !== 'string') {

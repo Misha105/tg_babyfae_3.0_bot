@@ -1,21 +1,21 @@
 import type { StateCreator } from 'zustand';
 import type { Settings, CustomActivityDefinition } from '@/types';
 import { saveUserSettings, saveCustomActivity, deleteCustomActivity } from '@/lib/api/sync';
-import { getTelegramUserId } from '@/lib/telegram/userData';
+import { getSafeUserId } from '@/lib/telegram/userData';
 import { addToQueue } from '@/lib/api/queue';
+import { toast } from '@/lib/toast';
 
-/**
- * Gets user ID for API calls. In production, returns 0 if not authenticated
- * which will cause API calls to fail (correct behavior).
- * Only uses mock ID 12345 in development mode.
- */
-const getUserId = (): number => {
-  const id = getTelegramUserId();
-  if (id > 0) return id;
-  // Only use fallback in DEV mode
-  if (import.meta.env.DEV) return 12345;
-  console.error('[SettingsSlice] No valid user ID available');
-  return 0;
+const notifySettingsSyncFailure = (context: string, error?: unknown) => {
+  const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+  const base = context || 'настройки';
+  if (offline) {
+    toast.info(`${base} сохранены офлайн.`);
+  } else {
+    toast.error(`Не удалось синхронизировать ${base}, повторим позже.`);
+  }
+  if (error) {
+    console.error(`[SettingsSlice] ${base} sync failed`, error);
+  }
 };
 
 export interface SettingsSlice {
@@ -36,9 +36,14 @@ export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
   updateSettings: (newSettings) => {
     set((state) => {
       const updatedSettings = { ...state.settings, ...newSettings };
-      const userId = getUserId();
-      saveUserSettings(userId, updatedSettings).catch(() => {
+      const userId = getSafeUserId();
+      if (userId <= 0) {
+        toast.error('Не удалось определить пользователя Telegram.');
+        return { settings: updatedSettings };
+      }
+      saveUserSettings(userId, updatedSettings).catch((error) => {
         addToQueue('saveSettings', { userId, settings: updatedSettings });
+        notifySettingsSyncFailure('настройки', error);
       });
       return { settings: updatedSettings };
     });
@@ -47,18 +52,28 @@ export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
     set((state) => ({
       customActivities: [...state.customActivities, activity]
     }));
-    const userId = getUserId();
-    saveCustomActivity(userId, activity).catch(() => {
+    const userId = getSafeUserId();
+    if (userId <= 0) {
+      toast.error('Не удалось определить пользователя Telegram.');
+      return;
+    }
+    saveCustomActivity(userId, activity).catch((error) => {
       addToQueue('saveCustomActivity', { userId, customActivity: activity });
+      notifySettingsSyncFailure('кастомные активности', error);
     });
   },
   removeCustomActivity: (id) => {
     set((state) => ({
       customActivities: state.customActivities.filter(a => a.id !== id)
     }));
-    const userId = getUserId();
-    deleteCustomActivity(userId, id).catch(() => {
+    const userId = getSafeUserId();
+    if (userId <= 0) {
+      toast.error('Не удалось определить пользователя Telegram.');
+      return;
+    }
+    deleteCustomActivity(userId, id).catch((error) => {
       addToQueue('deleteCustomActivity', { userId, customActivityId: id });
+      notifySettingsSyncFailure('удаление активности', error);
     });
   },
 });
