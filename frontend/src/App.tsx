@@ -65,15 +65,24 @@ function App() {
     };
   }, [initializeForUser]);
 
+  // Manage loading state class on root element
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (root) {
+      if (!hasHydrated) {
+        root.classList.add('loading-state');
+      } else {
+        root.classList.remove('loading-state');
+      }
+    }
+  }, [hasHydrated]);
+
   // Show loading while initializing
   if (!hasHydrated) {
     return (
       <>
         <TelegramViewportSync />
-        <div className="min-h-dvh flex flex-col items-center justify-center bg-slate-950">
-          <LoadingSpinner />
-          <p className="text-slate-400 mt-4 text-sm">Загрузка данных...</p>
-        </div>
+        <LoadingSpinner fullScreen size={48} />
       </>
     );
   }

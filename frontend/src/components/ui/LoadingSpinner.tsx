@@ -1,10 +1,26 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 
-export const LoadingSpinner: React.FC = () => {
+interface LoadingSpinnerProps {
+  size?: number;
+  className?: string;
+  fullScreen?: boolean;
+}
+
+export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
+  size = 40, 
+  className = '',
+  fullScreen = false 
+}) => {
+  if (fullScreen) {
+    return (
+      <div className="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
+        <Loader2 className={`animate-spin text-blue-500 ${className}`} size={size} />
+      </div>
+    );
+  }
+  
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <Loader2 className="animate-spin text-blue-500" size={48} />
-    </div>
+    <Loader2 className={`animate-spin text-blue-500 ${className}`} size={size} />
   );
 };

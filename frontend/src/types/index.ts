@@ -53,6 +53,7 @@ export interface Settings {
   feedingIntervalMinutes: number;
   notificationsEnabled: boolean;
   themePreference: 'auto' | 'dark' | 'light';
+  activeSleepStart?: string | null; // ISO string - synced to server for cross-device persistence
 }
 
 export interface NotificationSchedule {

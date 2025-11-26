@@ -14,6 +14,7 @@ import { exportUserDataToChat, importUserData as importUserDataApi } from '@/lib
 import { ApiError } from '@/lib/api/client';
 import { addToQueue } from '@/lib/api/queue';
 import { createDateFromInput } from '@/lib/dateUtils';
+import { toast } from '@/lib/toast';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   star: Star,
@@ -67,11 +68,11 @@ export const SettingsScreen: React.FC = () => {
               data: exportData,
               language: i18n.language
             });
-            alert(t('settings.export_sent_to_chat', 'Backup sent to your chat!'));
+            toast.success(t('settings.export_sent_to_chat', 'Backup sent to your chat!'));
             return;
           } catch (error) {
             if (error instanceof ApiError && error.status === 429) {
-              alert(t('settings.export_limit_reached', 'Too many backup requests. Please wait a minute.'));
+              toast.error(t('settings.export_limit_reached', 'Too many backup requests. Please wait a minute.'));
               return;
             }
             console.warn('Backend export failed, falling back to local download', error);
@@ -112,7 +113,7 @@ export const SettingsScreen: React.FC = () => {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Export failed:', error);
-      alert(t('settings.export_error', 'Failed to export data'));
+      toast.error(t('settings.export_error', 'Failed to export data'));
     }
   };
 
@@ -142,11 +143,11 @@ export const SettingsScreen: React.FC = () => {
       // Send backup to the backend so data stays consistent across devices (audit finding #4).
       await importUserDataApi(userId, data);
       await syncWithServer(userId);
-      alert(t('settings.import_success', 'Data imported successfully'));
+      toast.success(t('settings.import_success', 'Data imported successfully'));
     } catch (error) {
       console.error('Import failed:', error);
       const message = error instanceof Error ? error.message : t('settings.import_error', 'Failed to import data. Invalid file format.');
-      alert(message);
+      toast.error(message);
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
@@ -198,6 +199,7 @@ export const SettingsScreen: React.FC = () => {
 
     if (!userId) {
       console.error('Cannot sync notifications: User ID missing');
+      toast.error(t('settings.notifications_error', 'Failed to update notifications'));
       return;
     }
 
@@ -217,11 +219,14 @@ export const SettingsScreen: React.FC = () => {
           next_run: Math.floor(Date.now() / 1000) + (settings.feedingIntervalMinutes * 60),
           enabled: true
         });
+        toast.success(t('settings.notifications_enabled', 'Reminders enabled'));
       } else {
         await deleteSchedule('feeding-reminder', userId);
+        toast.info(t('settings.notifications_disabled', 'Reminders disabled'));
       }
     } catch (error) {
       console.error('Failed to sync notifications, adding to queue', error);
+      toast.info(t('settings.notifications_queued', 'Will sync when online'));
       
       if (newEnabled) {
         addToQueue('update', {
@@ -235,6 +240,43 @@ export const SettingsScreen: React.FC = () => {
         });
       } else {
         addToQueue('delete', { id: 'feeding-reminder', user_id: userId });
+      }
+    }
+  };
+
+  const updateFeedingInterval = async (minutes: number) => {
+    updateSettings({ feedingIntervalMinutes: minutes });
+    
+    // If notifications are enabled, update the schedule
+    if (settings.notificationsEnabled) {
+      const userId = getCurrentUserId();
+      if (!userId) return;
+      
+      try {
+        await syncSchedule({
+          id: 'feeding-reminder',
+          user_id: userId,
+          chat_id: userId,
+          type: 'feeding',
+          schedule_data: { 
+            intervalMinutes: minutes,
+            language: i18n.language 
+          },
+          next_run: Math.floor(Date.now() / 1000) + (minutes * 60),
+          enabled: true
+        });
+        toast.success(t('settings.interval_updated', 'Reminder interval updated'));
+      } catch (error) {
+        console.error('Failed to update interval', error);
+        addToQueue('update', {
+          id: 'feeding-reminder',
+          user_id: userId,
+          chat_id: userId,
+          type: 'feeding',
+          schedule_data: { intervalMinutes: minutes },
+          next_run: Math.floor(Date.now() / 1000) + (minutes * 60),
+          enabled: true
+        });
       }
     }
   };
@@ -358,7 +400,7 @@ export const SettingsScreen: React.FC = () => {
         </div>
 
         {/* Notifications Card */}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 flex flex-col justify-between h-40 relative overflow-hidden">
+        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 flex flex-col justify-between min-h-40 relative overflow-hidden">
           
           <div className="flex items-start justify-between relative z-10">
             <div className="p-2 bg-orange-500/10 rounded-xl text-orange-400">
@@ -376,14 +418,26 @@ export const SettingsScreen: React.FC = () => {
             </button>
           </div>
           <div className="relative z-10">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-1">{t('settings.notifications')}</span>
+            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-1">{t('settings.feeding_reminders', 'Feeding Reminders')}</span>
             <span className="text-lg font-bold text-white leading-tight">
               {settings.notificationsEnabled ? t('common.on', 'On') : t('common.off', 'Off')}
             </span>
             {settings.notificationsEnabled && (
-              <span className="text-xs text-orange-400/80 block mt-1">
-                {settings.feedingIntervalMinutes} {t('common.minutes_short')}
-              </span>
+              <div className="flex gap-2 mt-2">
+                {[60, 120, 180, 240].map((minutes) => (
+                  <button
+                    key={minutes}
+                    onClick={() => updateFeedingInterval(minutes)}
+                    className={`text-xs px-2 py-1 rounded-lg transition-colors ${
+                      settings.feedingIntervalMinutes === minutes 
+                        ? 'bg-orange-500 text-white' 
+                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                    }`}
+                  >
+                    {minutes >= 60 ? `${minutes / 60}${t('common.hours_short')}` : `${minutes}${t('common.minutes_short')}`}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -536,17 +590,18 @@ export const SettingsScreen: React.FC = () => {
             
             if (userId && userId > 0) {
               await resetAllData(userId);
+              toast.success(t('settings.data_cleared', 'All data has been cleared'));
               setShowClearDataConfirm(false);
             } else {
               console.error('User ID not found or invalid:', userId);
-              alert(t('common.error_generic', 'An error occurred') + ': User ID missing or invalid');
+              toast.error(t('common.error_generic', 'An error occurred') + ': User ID missing or invalid');
             }
           } catch (error) {
             console.error('Failed to clear data', error);
             // Use direct string interpolation to ensure the error message is shown, 
             // bypassing potential translation key masking
             const errorMessage = error instanceof Error ? error.message : String(error);
-            alert(`${t('common.error_generic', 'An error occurred')}: ${errorMessage}`);
+            toast.error(`${t('common.error_generic', 'An error occurred')}: ${errorMessage}`);
           }
         }}
         title={t('settings.clear_data_confirm_title', 'Clear All Data?')}

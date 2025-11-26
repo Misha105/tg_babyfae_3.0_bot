@@ -4,6 +4,11 @@
     "loading": "Loading...",
     "error": "An error occurred"
   },
+  "error_boundary": {
+    "title": "Something went wrong",
+    "message": "We're sorry, but the application encountered an unexpected error.",
+    "reload": "Reload Application"
+  },
   "dashboard": {
     "feeding": "Feeding",
     "water": "Water",
@@ -52,6 +57,7 @@
     "amount": "Amount",
     "unit": "Unit",
     "minutes_short": "m",
+    "hours_short": "h",
     "on": "On",
     "off": "Off",
     "unit_kg": "kg",
@@ -107,7 +113,13 @@
     "irreversible_action": "Irreversible action",
     "export_sent_to_chat": "Backup sent to your chat!",
     "export_limit_reached": "Too many backup requests. Please wait a minute.",
-    "export_backend_error": "Failed to send backup to chat."
+    "export_backend_error": "Failed to send backup to chat.",
+    "data_cleared": "All data has been cleared",
+    "notifications_enabled": "Reminders enabled",
+    "notifications_disabled": "Reminders disabled",
+    "notifications_error": "Failed to update notification settings",
+    "notifications_queued": "Will sync when online",
+    "interval_updated": "Reminder interval updated"
   },
   "calendar": {
     "week_of": "Week of {{date}}",
@@ -129,7 +141,8 @@
     "hours_short": "h",
     "minutes_short": "m",
     "sessions": "sessions",
-    "times": "times"
+    "times": "times",
+    "load_more_history": "Load older history"
   },
   "activities": {
     "sleep": "Sleep",

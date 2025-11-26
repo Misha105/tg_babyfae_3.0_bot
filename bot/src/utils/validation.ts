@@ -226,6 +226,15 @@ export function validateProfile(profile: unknown): ValidationResult {
 }
 
 /**
+ * Validates ISO 8601 date string
+ */
+function isValidISOString(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const date = new Date(value);
+  return !isNaN(date.getTime()) && value === date.toISOString();
+}
+
+/**
  * Validates settings data
  */
 export function validateSettings(settings: unknown): ValidationResult {
@@ -239,6 +248,13 @@ export function validateSettings(settings: unknown): ValidationResult {
     const interval = parseInt(String(sett.feedingIntervalMinutes));
     if (isNaN(interval) || interval < 30 || interval > 1440) { // 30 min to 24 hours
       return { valid: false, error: 'Invalid feeding interval (must be between 30 and 1440 minutes)' };
+    }
+  }
+  
+  // Validate activeSleepStart - must be null or valid ISO 8601 date string
+  if (sett.activeSleepStart !== undefined && sett.activeSleepStart !== null) {
+    if (!isValidISOString(sett.activeSleepStart)) {
+      return { valid: false, error: 'Invalid activeSleepStart (must be null or valid ISO 8601 date string)' };
     }
   }
   

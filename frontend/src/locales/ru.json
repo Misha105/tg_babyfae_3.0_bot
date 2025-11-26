@@ -4,6 +4,11 @@
     "loading": "Загрузка...",
     "error": "Произошла ошибка"
   },
+  "error_boundary": {
+    "title": "Что-то пошло не так",
+    "message": "Извините, но в приложении произошла непредвиденная ошибка.",
+    "reload": "Перезагрузить"
+  },
   "dashboard": {
     "feeding": "Кормление",
     "water": "Вода",
@@ -53,6 +58,7 @@
     "amount": "Количество",
     "unit": "Ед. изм.",
     "minutes_short": "мин",
+    "hours_short": "ч",
     "on": "Вкл",
     "off": "Выкл",
     "unit_kg": "кг",
@@ -143,7 +149,13 @@
     "irreversible_action": "Необратимое действие",
     "export_sent_to_chat": "Резервная копия отправлена в чат!",
     "export_limit_reached": "Слишком много запросов. Пожалуйста, подождите минуту.",
-    "export_backend_error": "Не удалось отправить резервную копию в чат."
+    "export_backend_error": "Не удалось отправить резервную копию в чат.",
+    "data_cleared": "Все данные удалены",
+    "notifications_enabled": "Напоминания включены",
+    "notifications_disabled": "Напоминания отключены",
+    "notifications_error": "Не удалось обновить настройки уведомлений",
+    "notifications_queued": "Синхронизируется при подключении",
+    "interval_updated": "Интервал напоминаний обновлён"
   },
   "calendar": {
     "week_of": "Неделя {{date}}",
@@ -165,7 +177,8 @@
     "hours_short": "ч",
     "minutes_short": "м",
     "sessions": "сессии",
-    "times": "раз"
+    "times": "раз",
+    "load_more_history": "Загрузить старые записи"
   },
   "activities": {
     "sleep": "Сон",

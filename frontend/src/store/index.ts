@@ -130,6 +130,9 @@ export const useStore = create<AppState>()(
           console.log(`[Store] Fetching data from server for user ${userId}`);
           const data = await fetchUserData(userId) as UserDataResponse;
           
+          // Extract activeSleepStart from settings for cross-device persistence
+          const serverActiveSleepStart = data?.settings?.activeSleepStart ?? null;
+          
           // Apply server data
           set({
             profile: data?.profile || null,
@@ -141,6 +144,7 @@ export const useStore = create<AppState>()(
             activities: data?.activities || [],
             customActivities: data?.customActivities || [],
             growthRecords: data?.growthRecords || [],
+            activeSleepStart: serverActiveSleepStart, // Restore sleep timer from server
             _isServerSynced: true,
             _hasHydrated: true,
           });
@@ -148,6 +152,7 @@ export const useStore = create<AppState>()(
           console.log(`[Store] Server sync complete for user ${userId}`, {
             hasProfile: !!data?.profile,
             activitiesCount: data?.activities?.length || 0,
+            activeSleepStart: serverActiveSleepStart,
           });
         } catch (error) {
           console.error(`[Store] Server sync failed for user ${userId}:`, error);
