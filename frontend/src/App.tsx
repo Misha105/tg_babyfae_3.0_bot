@@ -70,7 +70,7 @@ function App() {
     return (
       <>
         <TelegramViewportSync />
-        <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-slate-950">
+        <div className="min-h-dvh flex flex-col items-center justify-center bg-slate-950">
           <LoadingSpinner />
           <p className="text-slate-400 mt-4 text-sm">Загрузка данных...</p>
         </div>
@@ -83,7 +83,7 @@ function App() {
     return (
       <>
         <TelegramViewportSync />
-        <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-slate-950 px-4">
+        <div className="min-h-dvh flex flex-col items-center justify-center bg-slate-950 px-4">
           <div className="text-red-400 text-center">
             <p className="text-lg font-medium mb-2">Ошибка</p>
             <p className="text-sm">{initError}</p>
