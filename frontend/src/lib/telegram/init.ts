@@ -25,6 +25,37 @@ export function isTelegramEnvironment(): boolean {
 }
 
 /**
+ * Reliable check if app is running inside Telegram WebApp (not mocked browser)
+ * This checks for real Telegram environment indicators that cannot be easily faked
+ */
+export function isRealTelegramWebApp(): boolean {
+  // In DEV mode, we have a mock - allow it to work
+  if (import.meta.env.DEV) {
+    return true;
+  }
+
+  try {
+    const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string; initDataUnsafe?: { user?: unknown } } } }).Telegram?.WebApp;
+    
+    if (!tg) {
+      return false;
+    }
+
+    // Real Telegram WebApp always has initData (even if empty string in some cases)
+    // and initDataUnsafe with user info when opened by a user
+    // Check if we have meaningful data that indicates real Telegram
+    const hasInitData = typeof tg.initData === 'string';
+    const hasUserData = tg.initDataUnsafe?.user !== undefined;
+    
+    // If opened in Telegram, we should have at least initData defined
+    // The initData may be empty string in some edge cases but the property exists
+    return hasInitData || hasUserData;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Initialize the Telegram SDK. Safe to call multiple times.
  * Returns a promise that resolves when initialization is complete.
  */

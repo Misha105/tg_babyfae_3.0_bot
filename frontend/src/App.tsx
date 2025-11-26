@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useStore } from '@/store';
 import { OnboardingScreen } from '@/features/onboarding/OnboardingScreen';
@@ -9,22 +10,45 @@ import { SettingsScreen } from '@/features/settings/SettingsScreen';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Header } from '@/components/ui/Header';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { initTelegram } from '@/lib/telegram/init';
+import { BrowserFallback } from '@/components/BrowserFallback';
+import { initTelegram, isRealTelegramWebApp } from '@/lib/telegram/init';
 import { getTelegramUserId } from '@/lib/telegram/userData';
 import { processQueue } from '@/lib/api/queue';
 import { TelegramViewportSync } from '@/components/TelegramViewportSync';
 import '@/lib/i18n';
 import '@/mock-env';
 
+// Error types for localization
+type InitErrorType = 'user_id' | 'init' | null;
+
 function App() {
+  const { t } = useTranslation();
   const profile = useStore((state) => state.profile);
   const hasHydrated = useStore((state) => state._hasHydrated);
   const isServerSynced = useStore((state) => state._isServerSynced);
   const initializeForUser = useStore((state) => state.initializeForUser);
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'calendar' | 'growth' | 'settings'>('dashboard');
-  const [initError, setInitError] = useState<string | null>(null);
+  const [initErrorType, setInitErrorType] = useState<InitErrorType>(null);
+  const [isBrowser, setIsBrowser] = useState<boolean | null>(null);
+
+  // Check if running in browser (not Telegram) - do this BEFORE mock-env runs
+  useEffect(() => {
+    // Check if this is a real Telegram WebApp environment
+    const isRealTelegram = isRealTelegramWebApp();
+    setIsBrowser(!isRealTelegram);
+  }, []);
 
   useEffect(() => {
+    // Don't initialize if we detected it's a regular browser
+    if (isBrowser === true) {
+      return;
+    }
+    
+    // Wait until browser check is complete
+    if (isBrowser === null) {
+      return;
+    }
+
     const initialize = async () => {
       try {
         // Initialize Telegram SDK first (async, waits for all mounts)
@@ -36,7 +60,7 @@ function App() {
         if (!userId || userId === 0) {
           // No valid user ID - this shouldn't happen in production Telegram
           console.error('[App] No valid Telegram user ID available');
-          setInitError('Не удалось получить ID пользователя Telegram');
+          setInitErrorType('user_id');
           return;
         }
         
@@ -54,7 +78,7 @@ function App() {
         
       } catch (error) {
         console.error('[App] Initialization failed:', error);
-        setInitError('Ошибка инициализации приложения');
+        setInitErrorType('init');
       }
     };
     
@@ -63,7 +87,7 @@ function App() {
     return () => {
       window.removeEventListener('online', processQueue);
     };
-  }, [initializeForUser]);
+  }, [initializeForUser, isBrowser]);
 
   // Manage loading state class on root element
   useEffect(() => {
@@ -79,6 +103,11 @@ function App() {
 
   // Show loading while initializing
   if (!hasHydrated) {
+    // Show browser fallback if detected as regular browser
+    if (isBrowser === true) {
+      return <BrowserFallback />;
+    }
+    
     return (
       <>
         <TelegramViewportSync />
@@ -87,20 +116,29 @@ function App() {
     );
   }
 
+  // Show browser fallback for non-Telegram environments
+  if (isBrowser === true) {
+    return <BrowserFallback />;
+  }
+
   // Show error if initialization failed
-  if (initError) {
+  if (initErrorType) {
+    const errorMessage = initErrorType === 'user_id' 
+      ? t('app.error_user_id') 
+      : t('app.error_init');
+    
     return (
       <>
         <TelegramViewportSync />
         <div className="min-h-dvh flex flex-col items-center justify-center bg-slate-950 px-4">
           <div className="text-red-400 text-center">
-            <p className="text-lg font-medium mb-2">Ошибка</p>
-            <p className="text-sm">{initError}</p>
+            <p className="text-lg font-medium mb-2">{t('app.error_title')}</p>
+            <p className="text-sm">{errorMessage}</p>
             <button 
               onClick={() => window.location.reload()}
               className="mt-4 px-4 py-2 bg-blue-600 rounded-lg text-white text-sm"
             >
-              Попробовать снова
+              {t('app.try_again')}
             </button>
           </div>
         </div>
@@ -132,7 +170,7 @@ function App() {
         {/* Show sync indicator if we're still trying to sync */}
         {!isServerSynced && (
           <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-yellow-600/90 text-white text-xs px-3 py-1 rounded-full">
-            Синхронизация...
+            {t('app.syncing')}
           </div>
         )}
       </>

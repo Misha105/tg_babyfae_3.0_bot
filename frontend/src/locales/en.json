@@ -2,12 +2,24 @@
   "app": {
     "title": "Babyfae",
     "loading": "Loading...",
-    "error": "An error occurred"
+    "error": "An error occurred",
+    "error_title": "Error",
+    "error_user_id": "Failed to get Telegram user ID",
+    "error_init": "Application initialization failed",
+    "try_again": "Try again",
+    "syncing": "Syncing...",
+    "version": "Babyfae v{{version}}"
   },
   "error_boundary": {
     "title": "Something went wrong",
     "message": "We're sorry, but the application encountered an unexpected error.",
     "reload": "Reload Application"
+  },
+  "browser_fallback": {
+    "title": "Babyfae",
+    "description": "This app works exclusively through Telegram. Please open the bot to continue.",
+    "open_telegram": "Open in Telegram",
+    "hint": "Open Telegram on your phone or desktop, then search for @Babyfae_bot to get started."
   },
   "dashboard": {
     "feeding": "Feeding",

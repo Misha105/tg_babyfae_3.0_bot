@@ -2,12 +2,24 @@
   "app": {
     "title": "Babyfae",
     "loading": "Загрузка...",
-    "error": "Произошла ошибка"
+    "error": "Произошла ошибка",
+    "error_title": "Ошибка",
+    "error_user_id": "Не удалось получить ID пользователя Telegram",
+    "error_init": "Ошибка инициализации приложения",
+    "try_again": "Попробовать снова",
+    "syncing": "Синхронизация...",
+    "version": "Babyfae v{{version}}"
   },
   "error_boundary": {
     "title": "Что-то пошло не так",
     "message": "Извините, но в приложении произошла непредвиденная ошибка.",
     "reload": "Перезагрузить"
+  },
+  "browser_fallback": {
+    "title": "Babyfae",
+    "description": "Это приложение работает только через Telegram. Пожалуйста, откройте бота для продолжения.",
+    "open_telegram": "Открыть в Telegram",
+    "hint": "Откройте Telegram на телефоне или компьютере и найдите @Babyfae_bot чтобы начать."
   },
   "dashboard": {
     "feeding": "Кормление",
@@ -115,7 +127,8 @@
     "validation": {
       "weight_range": "Вес должен быть от 2 кг до 30 кг",
       "height_range": "Рост должен быть от 20 см до 120 см",
-      "invalid_number": "Пожалуйста, введите корректное число"
+      "invalid_number": "Пожалуйста, введите корректное число",
+      "date_before_birth": "Дата не может быть раньше даты рождения"
     }
   },
   "settings": {

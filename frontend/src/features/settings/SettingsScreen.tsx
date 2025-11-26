@@ -604,13 +604,15 @@ export const SettingsScreen: React.FC = () => {
             toast.error(`${t('common.error_generic', 'An error occurred')}: ${errorMessage}`);
           }
         }}
-        title={t('settings.clear_data_confirm_title', 'Clear All Data?')}
-        message={t('settings.clear_data_confirm_message', 'This will permanently delete your profile, all activities, and settings. This action cannot be undone.')}
+        title={t('settings.clear_data_confirm_title')}
+        message={t('settings.clear_data_confirm_message')}
       />
 
       {/* Footer Info */}
       <div className="text-center pt-4 pb-4">
-        <p className="text-[10px] font-medium text-slate-600 uppercase tracking-widest">Babyfae v3.0.0</p>
+        <p className="text-[10px] font-medium text-slate-600 uppercase tracking-widest">
+          {t('app.version', { version: '3.0.0' })}
+        </p>
       </div>
     </div>
   );
