@@ -29,12 +29,12 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       const t = i18n.t.bind(i18n);
       return (
-        <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4 text-center">
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 text-center">
           <div className="bg-red-900/20 p-4 rounded-full mb-4">
             <AlertTriangle size={48} className="text-red-500" />
           </div>
           <h1 className="text-xl font-bold text-white mb-2">{t('error_boundary.title', 'Something went wrong')}</h1>
-          <p className="text-gray-400 mb-6 max-w-xs">
+          <p className="text-slate-400 mb-6 max-w-xs">
             {t('error_boundary.message', 'We\'re sorry, but the application encountered an unexpected error.')}
           </p>
           <button

@@ -18,14 +18,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onTabChange })
   ] as const;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 pb-safe z-50">
+    <nav className="fixed bottom-0 left-0 right-0 bg-slate-950 border-t border-slate-800 pb-safe z-50">
       <div className="flex justify-around items-center h-16">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
-              currentTab === tab.id ? 'text-blue-500' : 'text-gray-400 hover:text-gray-300'
+              currentTab === tab.id ? 'text-blue-500' : 'text-slate-400 hover:text-slate-300'
             }`}
           >
             <tab.icon size={24} />

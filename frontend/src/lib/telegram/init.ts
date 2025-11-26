@@ -41,15 +41,15 @@ export function isRealTelegramWebApp(): boolean {
       return false;
     }
 
-    // Real Telegram WebApp always has initData (even if empty string in some cases)
-    // and initDataUnsafe with user info when opened by a user
-    // Check if we have meaningful data that indicates real Telegram
-    const hasInitData = typeof tg.initData === 'string';
+    // Real Telegram WebApp has non-empty initData string OR initDataUnsafe with user info
+    // When opened in browser, telegram-web-app.js creates WebApp object but:
+    // - initData is empty string ""
+    // - initDataUnsafe.user is undefined
+    const hasValidInitData = typeof tg.initData === 'string' && tg.initData.length > 0;
     const hasUserData = tg.initDataUnsafe?.user !== undefined;
     
-    // If opened in Telegram, we should have at least initData defined
-    // The initData may be empty string in some edge cases but the property exists
-    return hasInitData || hasUserData;
+    // Must have either valid (non-empty) initData or user data
+    return hasValidInitData || hasUserData;
   } catch {
     return false;
   }

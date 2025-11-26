@@ -288,7 +288,7 @@ export const SettingsScreen: React.FC = () => {
   return (
     <div className="space-y-6 pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-20 -mx-4 px-4 pt-[calc(2.25rem+var(--tg-safe-area-top))] pb-4 bg-gray-900/95 backdrop-blur-md border-b border-white/5 shadow-lg shadow-black/5">
+      <div className="sticky top-0 z-20 -mx-4 px-4 pt-[calc(2.25rem+var(--tg-safe-area-top))] pb-4 bg-slate-950/95 backdrop-blur-md border-b border-white/5 shadow-lg shadow-black/5">
         <h2 className="text-xl font-bold text-white">{t('settings.title')}</h2>
       </div>
 

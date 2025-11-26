@@ -14,7 +14,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 }) => {
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-slate-950 flex items-center justify-center z-50">
         <Loader2 className={`animate-spin text-blue-500 ${className}`} size={size} />
       </div>
     );

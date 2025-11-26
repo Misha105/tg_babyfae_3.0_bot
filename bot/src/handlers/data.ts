@@ -19,6 +19,33 @@ import type { UserRow, ActivityRow, CustomActivityRow, GrowthRecordRow, Notifica
 // Limit import payloads to reduce DoS risk and enforce audit finding #2 safeguards.
 const MAX_IMPORT_RECORDS = 5000;
 
+// Types for import data validation
+interface ImportedActivity {
+  id?: string;
+  type?: string;
+  timestamp?: string;
+  [key: string]: unknown;
+}
+
+interface ImportedCustomActivity {
+  id?: string;
+  [key: string]: unknown;
+}
+
+interface ImportedGrowthRecord {
+  id?: string;
+  date?: string;
+  [key: string]: unknown;
+}
+
+interface ImportedSchedule {
+  id?: string;
+  type?: string;
+  next_run?: number;
+  enabled?: boolean;
+  [key: string]: unknown;
+}
+
 // Safe JSON parse helper
 const safeJsonParse = <T = unknown>(data: string | null, fallback: T | null = null): T | null => {
   if (!data) return fallback;
@@ -506,16 +533,16 @@ export const importUserData = async (req: Request, res: Response) => {
 
       // 3. Import Activities
       if (Array.isArray(data.activities)) {
-        const validActivities = data.activities.filter((a: any) => a.id && a.type && a.timestamp);
+        const validActivities = (data.activities as ImportedActivity[]).filter((a) => a.id && a.type && a.timestamp);
         const CHUNK_SIZE = 50;
         
         for (let i = 0; i < validActivities.length; i += CHUNK_SIZE) {
           const chunk = validActivities.slice(i, i + CHUNK_SIZE);
           const placeholders = chunk.map(() => '(?, ?, ?, ?, ?)').join(',');
-          const params: any[] = [];
+          const params: (string | number)[] = [];
           
-          chunk.forEach((act: any) => {
-            params.push(act.id, telegramId, act.type, act.timestamp, JSON.stringify(act));
+          chunk.forEach((act) => {
+            params.push(act.id!, telegramId, act.type!, act.timestamp!, JSON.stringify(act));
           });
 
           await dbAsync.run(
@@ -533,16 +560,16 @@ export const importUserData = async (req: Request, res: Response) => {
 
       // 4. Import Custom Activities
       if (Array.isArray(data.customActivities)) {
-        const validCustom = data.customActivities.filter((ca: any) => ca.id);
+        const validCustom = (data.customActivities as ImportedCustomActivity[]).filter((ca) => ca.id);
         const CHUNK_SIZE = 50;
 
         for (let i = 0; i < validCustom.length; i += CHUNK_SIZE) {
           const chunk = validCustom.slice(i, i + CHUNK_SIZE);
           const placeholders = chunk.map(() => '(?, ?, ?)').join(',');
-          const params: any[] = [];
+          const params: (string | number)[] = [];
 
-          chunk.forEach((ca: any) => {
-            params.push(ca.id, telegramId, JSON.stringify(ca));
+          chunk.forEach((ca) => {
+            params.push(ca.id!, telegramId, JSON.stringify(ca));
           });
 
           await dbAsync.run(
@@ -558,16 +585,16 @@ export const importUserData = async (req: Request, res: Response) => {
 
       // 5. Import Growth Records
       if (Array.isArray(data.growthRecords)) {
-        const validGrowth = data.growthRecords.filter((gr: any) => gr.id && gr.date);
+        const validGrowth = (data.growthRecords as ImportedGrowthRecord[]).filter((gr) => gr.id && gr.date);
         const CHUNK_SIZE = 50;
 
         for (let i = 0; i < validGrowth.length; i += CHUNK_SIZE) {
           const chunk = validGrowth.slice(i, i + CHUNK_SIZE);
           const placeholders = chunk.map(() => '(?, ?, ?, ?)').join(',');
-          const params: any[] = [];
+          const params: (string | number)[] = [];
 
-          chunk.forEach((gr: any) => {
-            params.push(gr.id, telegramId, gr.date, JSON.stringify(gr));
+          chunk.forEach((gr) => {
+            params.push(gr.id!, telegramId, gr.date!, JSON.stringify(gr));
           });
 
           await dbAsync.run(
@@ -584,17 +611,17 @@ export const importUserData = async (req: Request, res: Response) => {
 
       // 6. Import Schedules
       if (Array.isArray(data.schedules)) {
-        const validSchedules = data.schedules.filter((s: any) => s.id && s.type);
+        const validSchedules = (data.schedules as ImportedSchedule[]).filter((s) => s.id && s.type);
         const CHUNK_SIZE = 50;
 
         for (let i = 0; i < validSchedules.length; i += CHUNK_SIZE) {
           const chunk = validSchedules.slice(i, i + CHUNK_SIZE);
           const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(',');
-          const params: any[] = [];
+          const params: (string | number)[] = [];
 
-          chunk.forEach((s: any) => {
+          chunk.forEach((s) => {
             const nextRun = s.next_run || Math.floor(Date.now() / 1000);
-            params.push(s.id, telegramId, telegramId, s.type, JSON.stringify(s), nextRun, s.enabled ? 1 : 0);
+            params.push(s.id!, telegramId, telegramId, s.type!, JSON.stringify(s), nextRun, s.enabled ? 1 : 0);
           });
 
           await dbAsync.run(

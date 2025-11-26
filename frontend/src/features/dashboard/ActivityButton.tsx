@@ -15,7 +15,7 @@ export const ActivityButton: React.FC<ActivityButtonProps> = ({
   icon: Icon,
   onClick,
   lastActivityTime,
-  color = 'bg-gray-800',
+  color = 'bg-slate-800',
   isActive = false,
 }) => {
   return (
