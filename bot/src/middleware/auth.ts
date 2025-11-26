@@ -15,7 +15,9 @@ interface TelegramInitData {
   hash: string;
 }
 
+// Extend Express Request type - this is the standard pattern for Express type augmentation
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       telegramUser?: TelegramUser;

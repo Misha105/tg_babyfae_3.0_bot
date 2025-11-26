@@ -24,7 +24,6 @@ dotenv.config();
 // In production, WEBAPP_URL is required for correct origin checks in auth middleware.
 // This guards against misconfiguration where Telegram WebApp requests could bypass origin validation.
 if (process.env.NODE_ENV === 'production' && !process.env.WEBAPP_URL) {
-  // eslint-disable-next-line no-console
   console.error('FATAL: WEBAPP_URL must be set in production for secure Telegram WebApp authentication');
   process.exit(1);
 }
@@ -156,7 +155,7 @@ app.get('/health', async (_req, res) => {
       database: 'connected',
       timestamp: new Date().toISOString()
     });
-  } catch (err) {
+  } catch {
     res.status(503).json({ 
       status: 'error', 
       database: 'disconnected',

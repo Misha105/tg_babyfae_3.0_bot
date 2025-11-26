@@ -65,6 +65,8 @@ export const upsertRecord = async (
     
     return { success: true };
   } catch (err) {
-    throw err;
+    // Re-throw database errors with additional context
+    const message = err instanceof Error ? err.message : 'Unknown database error';
+    throw new Error(`Database upsert failed: ${message}`);
   }
 };

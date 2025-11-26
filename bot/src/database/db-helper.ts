@@ -70,7 +70,6 @@ export const dbAsync = {
 
   each: <T>(sql: string, params: unknown[] = [], callback: (row: T) => void): Promise<number> => {
     return new Promise((resolve, reject) => {
-      let count = 0;
       db.each(sql, params, 
         (err, row) => {
           if (err) {
@@ -78,11 +77,10 @@ export const dbAsync = {
             return;
           }
           callback(row as T);
-          count++;
         },
-        (err, count) => {
+        (err, finalCount) => {
           if (err) reject(err);
-          else resolve(count);
+          else resolve(finalCount);
         }
       );
     });

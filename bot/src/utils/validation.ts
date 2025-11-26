@@ -49,7 +49,7 @@ export function validateJsonSize(data: unknown): ValidationResult {
     }
     
     return { valid: true };
-  } catch (error) {
+  } catch {
     return { valid: false, error: 'Invalid JSON data' };
   }
 }
@@ -268,5 +268,6 @@ export function sanitizeString(input: string): string {
   if (typeof input !== 'string') return '';
   
   // Remove null bytes and control characters
+  // eslint-disable-next-line no-control-regex
   return input.replace(/[\x00-\x1F\x7F]/g, '').trim();
 }

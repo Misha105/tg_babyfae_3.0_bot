@@ -21,6 +21,11 @@ import '@/mock-env';
 // Error types for localization
 type InitErrorType = 'user_id' | 'init' | null;
 
+// Check browser environment once at module load (before React renders)
+const getInitialBrowserState = (): boolean => {
+  return !isRealTelegramWebApp();
+};
+
 function App() {
   const { t } = useTranslation();
   const profile = useStore((state) => state.profile);
@@ -29,23 +34,13 @@ function App() {
   const initializeForUser = useStore((state) => state.initializeForUser);
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'calendar' | 'growth' | 'settings'>('dashboard');
   const [initErrorType, setInitErrorType] = useState<InitErrorType>(null);
-  const [isBrowser, setIsBrowser] = useState<boolean | null>(null);
-
-  // Check if running in browser (not Telegram) - do this BEFORE mock-env runs
-  useEffect(() => {
-    // Check if this is a real Telegram WebApp environment
-    const isRealTelegram = isRealTelegramWebApp();
-    setIsBrowser(!isRealTelegram);
-  }, []);
+  
+  // Check if running in browser (not Telegram) - computed once at initial render
+  const isBrowser = getInitialBrowserState();
 
   useEffect(() => {
     // Don't initialize if we detected it's a regular browser
     if (isBrowser === true) {
-      return;
-    }
-    
-    // Wait until browser check is complete
-    if (isBrowser === null) {
       return;
     }
 

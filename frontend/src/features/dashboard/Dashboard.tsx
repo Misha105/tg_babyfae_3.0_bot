@@ -179,7 +179,7 @@ export const Dashboard: React.FC = () => {
 
     {/* Custom Activity Form Modal */}
     {showCustomActivityForm && (
-      <div className="fixed inset-0 z-[100] overflow-y-auto">
+      <div className="fixed inset-0 z-100 overflow-y-auto">
         <div 
           className="fixed inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" 
           onClick={() => setShowCustomActivityForm(false)} 
