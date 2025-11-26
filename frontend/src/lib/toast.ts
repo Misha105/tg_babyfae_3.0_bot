@@ -1,6 +1,9 @@
 /**
- * Simple toast notification system
- * Uses Telegram's HapticFeedback for better UX
+ * Toast notification system for Telegram Mini App
+ * - Slides in from the right
+ * - Respects Telegram safe areas
+ * - Uses app's design system (slate colors, rounded corners, backdrop blur)
+ * - Includes haptic feedback
  */
 
 interface ToastOptions {
@@ -8,26 +11,75 @@ interface ToastOptions {
   type?: 'success' | 'error' | 'info';
 }
 
+// Icon SVGs for each toast type
+const ICONS = {
+  success: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`,
+  error: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>`,
+  info: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`,
+};
+
+// Colors matching app design system
+const COLORS = {
+  success: { bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.3)', icon: '#10b981', text: '#6ee7b7' },
+  error: { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.3)', icon: '#ef4444', text: '#fca5a5' },
+  info: { bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.3)', icon: '#3b82f6', text: '#93c5fd' },
+};
+
 class ToastManager {
   private container: HTMLDivElement | null = null;
   private activeToasts: Set<HTMLDivElement> = new Set();
+  private styleInjected = false;
+
+  private injectStyles() {
+    if (this.styleInjected) return;
+    
+    const style = document.createElement('style');
+    style.id = 'toast-animations';
+    style.textContent = `
+      @keyframes toastSlideIn {
+        from {
+          opacity: 0;
+          transform: translateX(100%);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      @keyframes toastSlideOut {
+        from {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateX(100%);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    this.styleInjected = true;
+  }
 
   private ensureContainer() {
     if (!this.container) {
+      this.injectStyles();
+      
       this.container = document.createElement('div');
       this.container.id = 'toast-container';
+      // Position: top-right, below Telegram header with safe area
+      // Using CSS variable for safe area top
       this.container.style.cssText = `
         position: fixed;
-        top: 5%;
-        left: 50%;
-        transform: translateX(-50%);
+        top: calc(3.5rem + var(--tg-safe-area-top, 0px));
+        right: 1rem;
         z-index: 9999;
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
         pointer-events: none;
-        width: calc(100% - 2rem);
-        max-width: 400px;
+        max-width: calc(100vw - 2rem);
+        width: 320px;
       `;
       document.body.appendChild(this.container);
     }
@@ -57,66 +109,66 @@ class ToastManager {
     
     const container = this.ensureContainer();
     const toast = document.createElement('div');
+    const colors = COLORS[type];
     
-    const bgColor = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6';
-    
+    // Toast container with app design system
     toast.style.cssText = `
-      background: ${bgColor};
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: ${colors.bg};
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid ${colors.border};
       color: white;
-      padding: 0.75rem 1rem;
-      border-radius: 0.75rem;
+      padding: 0.875rem 1rem;
+      border-radius: 1rem;
       font-size: 0.875rem;
       font-weight: 500;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-      animation: slideInDown 0.3s ease-out;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+      animation: toastSlideIn 0.3s cubic-bezier(0.32, 0.72, 0, 1);
       pointer-events: auto;
       max-width: 100%;
       word-wrap: break-word;
     `;
     
-    toast.textContent = message;
+    // Icon wrapper
+    const iconWrapper = document.createElement('div');
+    iconWrapper.style.cssText = `
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: ${colors.icon};
+    `;
+    iconWrapper.innerHTML = ICONS[type];
     
-    // Add animation keyframes if not already added
-    if (!document.getElementById('toast-animations')) {
-      const style = document.createElement('style');
-      style.id = 'toast-animations';
-      style.textContent = `
-        @keyframes slideInDown {
-          from {
-            opacity: 0;
-            transform: translateY(-1rem);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes slideOutUp {
-          from {
-            opacity: 1;
-            transform: translateY(0);
-          }
-          to {
-            opacity: 0;
-            transform: translateY(-1rem);
-          }
-        }
-      `;
-      document.head.appendChild(style);
-    }
+    // Message text
+    const messageSpan = document.createElement('span');
+    messageSpan.style.cssText = `
+      flex: 1;
+      color: ${colors.text};
+      line-height: 1.4;
+    `;
+    messageSpan.textContent = message;
+    
+    toast.appendChild(iconWrapper);
+    toast.appendChild(messageSpan);
     
     container.appendChild(toast);
     this.activeToasts.add(toast);
     
-    // Auto remove
+    // Auto remove with slide-out animation
     setTimeout(() => {
-      toast.style.animation = 'slideOutUp 0.3s ease-out';
+      toast.style.animation = 'toastSlideOut 0.25s cubic-bezier(0.32, 0.72, 0, 1) forwards';
       setTimeout(() => {
         if (toast.parentNode) {
           toast.parentNode.removeChild(toast);
         }
         this.activeToasts.delete(toast);
-      }, 300);
+      }, 250);
     }, duration);
   }
 

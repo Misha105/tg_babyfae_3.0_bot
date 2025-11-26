@@ -204,11 +204,12 @@ export const SettingsScreen: React.FC = () => {
     }
 
     const chatId = userId; // For private chats, chat_id is usually the user_id
+    const scheduleId = `feeding-reminder-${userId}`; // Unique per user
 
     try {
       if (newEnabled) {
         await syncSchedule({
-          id: 'feeding-reminder',
+          id: scheduleId,
           user_id: userId,
           chat_id: chatId,
           type: 'feeding',
@@ -221,7 +222,7 @@ export const SettingsScreen: React.FC = () => {
         });
         toast.success(t('settings.notifications_enabled', 'Reminders enabled'));
       } else {
-        await deleteSchedule('feeding-reminder', userId);
+        await deleteSchedule(scheduleId, userId);
         toast.info(t('settings.notifications_disabled', 'Reminders disabled'));
       }
     } catch (error) {
@@ -230,7 +231,7 @@ export const SettingsScreen: React.FC = () => {
       
       if (newEnabled) {
         addToQueue('update', {
-          id: 'feeding-reminder',
+          id: scheduleId,
           user_id: userId,
           chat_id: chatId,
           type: 'feeding',
@@ -239,7 +240,7 @@ export const SettingsScreen: React.FC = () => {
           enabled: true
         });
       } else {
-        addToQueue('delete', { id: 'feeding-reminder', user_id: userId });
+        addToQueue('delete', { id: scheduleId, user_id: userId });
       }
     }
   };
@@ -252,9 +253,11 @@ export const SettingsScreen: React.FC = () => {
       const userId = getCurrentUserId();
       if (!userId) return;
       
+      const scheduleId = `feeding-reminder-${userId}`; // Unique per user
+      
       try {
         await syncSchedule({
-          id: 'feeding-reminder',
+          id: scheduleId,
           user_id: userId,
           chat_id: userId,
           type: 'feeding',
@@ -269,7 +272,7 @@ export const SettingsScreen: React.FC = () => {
       } catch (error) {
         console.error('Failed to update interval', error);
         addToQueue('update', {
-          id: 'feeding-reminder',
+          id: scheduleId,
           user_id: userId,
           chat_id: userId,
           type: 'feeding',
