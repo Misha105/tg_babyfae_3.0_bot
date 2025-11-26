@@ -45,6 +45,7 @@
     "name_label": "Baby's Name",
     "name_placeholder": "Enter name",
     "gender_label": "Gender",
+    "select_gender": "Select gender",
     "gender_male": "Boy",
     "gender_female": "Girl",
     "birthdate_label": "Birth Date",
@@ -102,7 +103,8 @@
     "baby_profile": "Baby Profile",
     "baby_name": "Name",
     "birth_date": "Birth Date",
-    "feeding_reminders": "Receive reminders for feeding every...",
+    "feeding_reminders": "Feeding reminders",
+    "reminder_interval": "Reminder interval",
     "feeding_reminders_fmt": "Receive reminders for feeding every {{hours}} hours.",
     "custom_activities": "Custom Activities",
     "no_custom_activities": "No custom activities yet.",
@@ -207,9 +209,5 @@
     "weeks_other": "{{count}} weeks",
     "days": "{{count}} day",
     "days_other": "{{count}} days"
-  },
-  "export": {
-    "export_limit_reached": "Too many backup requests. Please wait a minute.",
-    "export_backend_error": "Failed to send backup to chat."
   }
 }

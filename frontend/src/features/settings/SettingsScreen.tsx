@@ -370,75 +370,91 @@ export const SettingsScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Settings Grid */}
-      <div className="grid grid-cols-2 gap-4">
-        {/* Language Card */}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 flex flex-col justify-between h-40">
-          <div className="flex items-start justify-between">
-            <div className="p-2 bg-blue-500/10 rounded-xl text-blue-400">
-              <Globe size={20} />
+      {/* Feeding Reminders Section - Full Width */}
+      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-orange-500/10 rounded-xl">
+              <Bell size={22} className="text-orange-400" />
             </div>
-            <div className="flex flex-col gap-1">
-              <button
-                onClick={() => changeLanguage('en')}
-                className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-colors ${i18n.language === 'en' ? 'bg-blue-500 text-white' : 'text-slate-500 hover:bg-slate-800'}`}
-              >
-                EN
-              </button>
-              <button
-                onClick={() => changeLanguage('ru')}
-                className={`text-[10px] font-bold px-2 py-1 rounded-lg transition-colors ${i18n.language === 'ru' ? 'bg-blue-500 text-white' : 'text-slate-500 hover:bg-slate-800'}`}
-              >
-                RU
-              </button>
+            <div>
+              <h3 className="text-base font-bold text-white">{t('settings.notifications')}</h3>
+              <p className="text-xs text-slate-500">{t('settings.feeding_reminders')}</p>
             </div>
           </div>
-          <div>
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-1">{t('settings.preferences')}</span>
-            <span className="text-lg font-bold text-white">{t('settings.language')}</span>
-          </div>
+          <button
+            onClick={toggleNotifications}
+            className={`w-12 h-7 rounded-full transition-colors relative ${
+              settings.notificationsEnabled ? 'bg-orange-500' : 'bg-slate-700'
+            }`}
+          >
+            <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm ${
+              settings.notificationsEnabled ? 'translate-x-5' : 'translate-x-0'
+            }`} />
+          </button>
         </div>
 
-        {/* Notifications Card */}
-        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 flex flex-col justify-between min-h-40 relative overflow-hidden">
-          
-          <div className="flex items-start justify-between relative z-10">
-            <div className="p-2 bg-orange-500/10 rounded-xl text-orange-400">
-              <Bell size={20} />
-            </div>
-            <button
-              onClick={toggleNotifications}
-              className={`w-10 h-6 rounded-full transition-colors relative ${
-                settings.notificationsEnabled ? 'bg-orange-500' : 'bg-slate-700'
-              }`}
-            >
-              <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${
-                settings.notificationsEnabled ? 'translate-x-4' : 'translate-x-0'
-              }`} />
-            </button>
-          </div>
-          <div className="relative z-10">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wider block mb-1">{t('settings.feeding_reminders', 'Feeding Reminders')}</span>
-            <span className="text-lg font-bold text-white leading-tight">
-              {settings.notificationsEnabled ? t('common.on', 'On') : t('common.off', 'Off')}
-            </span>
-            {settings.notificationsEnabled && (
-              <div className="flex gap-2 mt-2">
-                {[60, 120, 180, 240].map((minutes) => (
+        {settings.notificationsEnabled && (
+          <div className="pt-4 border-t border-slate-800/50">
+            <p className="text-xs font-medium text-slate-400 mb-3 uppercase tracking-wider">
+              {t('settings.reminder_interval', 'Reminder interval')}
+            </p>
+            <div className="grid grid-cols-4 gap-2">
+              {[60, 120, 180, 240].map((minutes) => {
+                const hours = minutes / 60;
+                const isSelected = settings.feedingIntervalMinutes === minutes;
+                return (
                   <button
                     key={minutes}
                     onClick={() => updateFeedingInterval(minutes)}
-                    className={`text-xs px-2 py-1 rounded-lg transition-colors ${
-                      settings.feedingIntervalMinutes === minutes 
-                        ? 'bg-orange-500 text-white' 
-                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                    className={`py-3 px-2 rounded-xl font-bold text-sm transition-all ${
+                      isSelected 
+                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' 
+                        : 'bg-slate-800/80 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
                     }`}
                   >
-                    {minutes >= 60 ? `${minutes / 60}${t('common.hours_short')}` : `${minutes}${t('common.minutes_short')}`}
+                    {hours} {t('common.hours_short')}
                   </button>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Language Card - Full Width */}
+      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-500/10 rounded-xl">
+              <Globe size={22} className="text-blue-400" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">{t('settings.language')}</h3>
+              <p className="text-xs text-slate-500">{t('settings.preferences')}</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => changeLanguage('en')}
+              className={`text-sm font-bold px-4 py-2 rounded-xl transition-all ${
+                i18n.language === 'en' 
+                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' 
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => changeLanguage('ru')}
+              className={`text-sm font-bold px-4 py-2 rounded-xl transition-all ${
+                i18n.language === 'ru' 
+                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' 
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+            >
+              RU
+            </button>
           </div>
         </div>
       </div>
