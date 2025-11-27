@@ -1,0 +1,21 @@
+# =============================================================================
+# Dozzle Users Configuration - TEMPLATE
+# =============================================================================
+# 1. Copy this file to: monitoring/dozzle-data/users.yml
+# 2. Generate password hash on your VPS:
+#
+#    docker run -it --rm amir20/dozzle generate admin \
+#      --password "YOUR_SECURE_PASSWORD" \
+#      --name "Admin" > monitoring/dozzle-data/users.yml
+#
+# Or manually replace the password hash below after generating it.
+# =============================================================================
+
+users:
+  admin:
+    name: Admin
+    email:
+    # ⚠️ REPLACE THIS HASH! Generate with command above.
+    password: $2a$11$REPLACE_WITH_YOUR_GENERATED_HASH_HERE
+    filter:
+    roles:

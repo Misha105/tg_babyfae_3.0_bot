@@ -1,0 +1,6 @@
+# This file keeps the dozzle-data directory in git.
+# 
+# Create users.yml here by running on your VPS:
+#   docker run -it --rm amir20/dozzle generate admin --password "YOUR_PASSWORD" --name "Admin" > users.yml
+#
+# The users.yml file is gitignored for security (contains password hashes).

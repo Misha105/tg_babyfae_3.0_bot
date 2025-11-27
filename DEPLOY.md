@@ -482,6 +482,104 @@ find $BACKUP_DIR -type f -name "*.db" -mtime +7 -delete
 
 ---
 
+## 🔍 Мониторинг логов (Dozzle)
+
+В проект интегрирован **Dozzle** — легковесный веб-интерфейс для просмотра логов Docker-контейнеров в реальном времени.
+
+| Характеристика | Значение |
+|----------------|----------|
+| RAM | ~10-15 MB |
+| CPU | <1% |
+| Безопасность | Bcrypt пароли, HTTPS |
+
+### Шаг 1: Настройка пароля
+
+```bash
+# На VPS генерируем хеш пароля
+docker run -it --rm amir20/dozzle generate admin --password "ВашНадёжныйПароль123!"
+```
+
+Скопируйте весь вывод и замените содержимое файла `monitoring/dozzle-data/users.yml`.
+
+### Шаг 2: Запуск
+
+Dozzle запускается автоматически вместе с основным приложением:
+```bash
+sudo docker compose up -d --build
+```
+
+### Шаг 3: Настройка Nginx для доступа через интернет
+
+Обновите конфиг `/etc/nginx/sites-available/babyfae`, добавив секцию для мониторинга:
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com;
+    
+    # SSL (Certbot)
+    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+    
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    
+    client_max_body_size 20M;
+
+    # Main App
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # Monitoring Panel (Dozzle)
+    location /monitor/ {
+        proxy_pass http://127.0.0.1:9999/monitor/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 86400;
+        proxy_buffering off;
+    }
+}
+```
+
+Применение:
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### Доступ к мониторингу
+
+```
+https://your-domain.com/monitor/
+```
+
+Логин: `admin`, пароль: ваш установленный пароль.
+
+> 📖 Подробная документация: [monitoring/README.md](monitoring/README.md)
+
+---
+
 ## Устранение неполадок (Troubleshooting)
 
 ### 1. Бот не отвечает на команды

@@ -60,3 +60,23 @@ Telegram Mini App for infant care tracking.
 - **Backend**: Runs on port 3000
 
 To test notifications locally, ensure the backend is running and configured with a valid Bot Token.
+
+## 🔍 Monitoring
+
+The project includes **Dozzle** for lightweight container log monitoring (~10MB RAM).
+
+Dozzle starts automatically with `docker compose up -d` and is accessible at:
+- **Local**: `http://localhost:9999`
+- **Production**: `https://your-domain.com/monitor/`
+
+### Setup on VPS
+
+```bash
+# Generate password
+docker run -it --rm amir20/dozzle generate admin --password "YourPassword"
+
+# Copy output to monitoring/dozzle-data/users.yml
+nano monitoring/dozzle-data/users.yml
+```
+
+See [monitoring/README.md](monitoring/README.md) for Nginx configuration and security options.

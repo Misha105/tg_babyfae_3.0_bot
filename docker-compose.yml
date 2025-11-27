@@ -1,6 +1,9 @@
 version: '3.8'
 
 services:
+  # ===========================================================================
+  # Backend (Telegram Bot + API)
+  # ===========================================================================
   bot:
     build: ./bot
     container_name: babyfae-bot
@@ -14,17 +17,94 @@ services:
       - ./data:/app/data
     networks:
       - app-network
+    # Logging configuration for Dozzle
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ===========================================================================
+  # Frontend (React + Nginx)
+  # ===========================================================================
   frontend:
     build: ./frontend
     container_name: babyfae-frontend
     restart: always
     ports:
-      - "127.0.0.1:8080:80" # Expose on localhost:8080 only (security: force access via Host Nginx)
+      - "127.0.0.1:8080:80"  # App: localhost only, access via host Nginx
     depends_on:
       - bot
     networks:
       - app-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Monitoring (Dozzle - Real-time Docker Logs Viewer)
+  # ===========================================================================
+  # Documentation: https://dozzle.dev/
+  # Access: https://your-domain.com/monitor/ (after Nginx setup)
+  # ===========================================================================
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: babyfae-dozzle
+    restart: unless-stopped
+    environment:
+      # Authentication (bcrypt passwords in users.yml)
+      - DOZZLE_AUTH_PROVIDER=simple
+      - DOZZLE_AUTH_TTL=48h
+      
+      # Base path for reverse proxy
+      - DOZZLE_BASE=/monitor
+      
+      # UI settings
+      - DOZZLE_HOSTNAME=Babyfae Monitor
+      - DOZZLE_NO_ANALYTICS=true
+      - DOZZLE_LEVEL=info
+      
+      # Security: disable container actions by default
+      # Uncomment to allow start/stop/restart containers
+      # - DOZZLE_ENABLE_ACTIONS=true
+      
+      # Timezone
+      - TZ=${TZ:-Europe/Moscow}
+    volumes:
+      # Docker socket (read-only for security)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # User credentials storage
+      - ./monitoring/dozzle-data:/data
+    ports:
+      # Localhost only - access via host Nginx with HTTPS
+      - "127.0.0.1:9999:8080"
+    networks:
+      - app-network
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+        reservations:
+          memory: 16M
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    # Note: read_only is NOT used because Dozzle needs to write to /data
+    healthcheck:
+      test: ["CMD", "/dozzle", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
 
 networks:
   app-network:

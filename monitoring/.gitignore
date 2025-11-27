@@ -1,0 +1,5 @@
+# Dozzle user credentials (contains password hashes - NEVER commit!)
+dozzle-data/users.yml
+
+# Keep the directory structure
+!dozzle-data/.gitkeep
