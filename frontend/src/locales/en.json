@@ -144,6 +144,7 @@
     "notifications_disabled": "Reminders disabled",
     "notifications_error": "Failed to update notification settings",
     "notifications_queued": "Will sync when online",
+    "notifications_feature_disabled": "Feature unavailable",
     "interval_updated": "Reminder interval updated"
   },
   "calendar": {

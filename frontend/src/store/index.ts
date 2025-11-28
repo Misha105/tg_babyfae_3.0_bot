@@ -108,7 +108,7 @@ export const useStore = create<AppState>()(
             activities: [],
             settings: {
               feedingIntervalMinutes: 180,
-              notificationsEnabled: true,
+              notificationsEnabled: false, // DISABLED: Notifications feature is disabled
               themePreference: 'auto',
             },
             customActivities: [],
@@ -136,9 +136,9 @@ export const useStore = create<AppState>()(
           // Apply server data
           set({
             profile: data?.profile || null,
-            settings: data?.settings || {
+            settings: data?.settings ? { ...data.settings, notificationsEnabled: false } : {
               feedingIntervalMinutes: 180,
-              notificationsEnabled: true,
+              notificationsEnabled: false, // DISABLED: Notifications feature is disabled
               themePreference: 'auto',
             },
             activities: data?.activities || [],
@@ -167,9 +167,9 @@ export const useStore = create<AppState>()(
                 console.log(`[Store] Using cached data for user ${userId}`);
                 set({
                   profile: parsed.state.profile || null,
-                  settings: parsed.state.settings || {
+                  settings: parsed.state.settings ? { ...parsed.state.settings, notificationsEnabled: false } : {
                     feedingIntervalMinutes: 180,
-                    notificationsEnabled: true,
+                    notificationsEnabled: false, // DISABLED: Notifications feature is disabled
                     themePreference: 'auto',
                   },
                   activities: parsed.state.activities || [],
@@ -242,7 +242,7 @@ export const useStore = create<AppState>()(
             activities: [],
             settings: {
               feedingIntervalMinutes: 180,
-              notificationsEnabled: true,
+              notificationsEnabled: false, // DISABLED: Notifications feature is disabled
               themePreference: 'auto',
             },
             customActivities: [],

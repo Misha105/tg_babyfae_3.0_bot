@@ -24,7 +24,7 @@ export interface SettingsSlice {
 export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
   settings: {
     feedingIntervalMinutes: 180,
-    notificationsEnabled: true,
+    notificationsEnabled: false, // DISABLED: Notifications feature is disabled
     themePreference: 'auto',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   },

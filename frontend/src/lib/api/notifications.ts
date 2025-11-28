@@ -1,3 +1,12 @@
+/**
+ * NOTIFICATIONS FEATURE DISABLED
+ * 
+ * This file is kept for backwards compatibility but the notification
+ * feature has been disabled. API calls will return 410 Gone.
+ * 
+ * @deprecated Notifications feature is disabled
+ */
+
 import { apiPost, apiDelete } from './client';
 
 export interface SchedulePayload {
@@ -14,10 +23,12 @@ export interface SchedulePayload {
   enabled: boolean;
 }
 
+/** @deprecated Notifications feature is disabled - API returns 410 */
 export const syncSchedule = async (schedule: SchedulePayload) => {
   return apiPost('/api/schedules/update', schedule);
 };
 
+/** @deprecated Notifications feature is disabled - API returns 410 */
 export const deleteSchedule = async (id: string, user_id: number) => {
   return apiDelete('/api/schedules', { id, user_id });
 };

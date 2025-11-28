@@ -9,10 +9,11 @@ import {
 import { useTranslation } from 'react-i18next';
 import { CustomActivityForm } from './CustomActivityForm';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
-import { syncSchedule, deleteSchedule } from '@/lib/api/notifications';
+// NOTIFICATIONS FEATURE DISABLED - imports removed
+// import { syncSchedule, deleteSchedule } from '@/lib/api/notifications';
 import { exportUserDataToChat, importUserData as importUserDataApi } from '@/lib/api/sync';
 import { ApiError } from '@/lib/api/client';
-import { addToQueue } from '@/lib/api/queue';
+// import { addToQueue } from '@/lib/api/queue';
 import { createDateFromInput } from '@/lib/dateUtils';
 import { toast } from '@/lib/toast';
 
@@ -29,7 +30,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 
 export const SettingsScreen: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { profile, updateProfile, customActivities, removeCustomActivity, settings, updateSettings, resetAllData, syncWithServer } = useStore();
+  const { profile, updateProfile, customActivities, removeCustomActivity, resetAllData, syncWithServer } = useStore();
   
   // UI States
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -191,98 +192,7 @@ export const SettingsScreen: React.FC = () => {
     setIsEditingProfile(false);
   };
 
-  const toggleNotifications = async () => {
-    const newEnabled = !settings.notificationsEnabled;
-    updateSettings({ notificationsEnabled: newEnabled });
-
-    const userId = getCurrentUserId();
-
-    if (!userId) {
-      console.error('Cannot sync notifications: User ID missing');
-      toast.error(t('settings.notifications_error', 'Failed to update notifications'));
-      return;
-    }
-
-    const chatId = userId; // For private chats, chat_id is usually the user_id
-    const scheduleId = `feeding-reminder-${userId}`; // Unique per user
-
-    try {
-      if (newEnabled) {
-        await syncSchedule({
-          id: scheduleId,
-          user_id: userId,
-          chat_id: chatId,
-          type: 'feeding',
-          schedule_data: { 
-            intervalMinutes: settings.feedingIntervalMinutes,
-            language: i18n.language 
-          },
-          next_run: Math.floor(Date.now() / 1000) + (settings.feedingIntervalMinutes * 60),
-          enabled: true
-        });
-        toast.success(t('settings.notifications_enabled', 'Reminders enabled'));
-      } else {
-        await deleteSchedule(scheduleId, userId);
-        toast.info(t('settings.notifications_disabled', 'Reminders disabled'));
-      }
-    } catch (error) {
-      console.error('Failed to sync notifications, adding to queue', error);
-      toast.info(t('settings.notifications_queued', 'Will sync when online'));
-      
-      if (newEnabled) {
-        addToQueue('update', {
-          id: scheduleId,
-          user_id: userId,
-          chat_id: chatId,
-          type: 'feeding',
-          schedule_data: { intervalMinutes: settings.feedingIntervalMinutes },
-          next_run: Math.floor(Date.now() / 1000) + (settings.feedingIntervalMinutes * 60),
-          enabled: true
-        });
-      } else {
-        addToQueue('delete', { id: scheduleId, user_id: userId });
-      }
-    }
-  };
-
-  const updateFeedingInterval = async (minutes: number) => {
-    updateSettings({ feedingIntervalMinutes: minutes });
-    
-    // If notifications are enabled, update the schedule
-    if (settings.notificationsEnabled) {
-      const userId = getCurrentUserId();
-      if (!userId) return;
-      
-      const scheduleId = `feeding-reminder-${userId}`; // Unique per user
-      
-      try {
-        await syncSchedule({
-          id: scheduleId,
-          user_id: userId,
-          chat_id: userId,
-          type: 'feeding',
-          schedule_data: { 
-            intervalMinutes: minutes,
-            language: i18n.language 
-          },
-          next_run: Math.floor(Date.now() / 1000) + (minutes * 60),
-          enabled: true
-        });
-        toast.success(t('settings.interval_updated', 'Reminder interval updated'));
-      } catch (error) {
-        console.error('Failed to update interval', error);
-        addToQueue('update', {
-          id: scheduleId,
-          user_id: userId,
-          chat_id: userId,
-          type: 'feeding',
-          schedule_data: { intervalMinutes: minutes },
-          next_run: Math.floor(Date.now() / 1000) + (minutes * 60),
-          enabled: true
-        });
-      }
-    }
-  };
+  // NOTIFICATIONS FEATURE DISABLED - functions removed
 
   const changeLanguage = (lang: string) => {
     i18n.changeLanguage(lang);
@@ -373,8 +283,8 @@ export const SettingsScreen: React.FC = () => {
         </div>
       </div>
 
-      {/* Feeding Reminders Section - Full Width */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5">
+      {/* Feeding Reminders Section - DISABLED */}
+      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 opacity-50">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-orange-500/10 rounded-xl">
@@ -382,47 +292,16 @@ export const SettingsScreen: React.FC = () => {
             </div>
             <div>
               <h3 className="text-base font-bold text-white">{t('settings.notifications')}</h3>
-              <p className="text-xs text-slate-500">{t('settings.feeding_reminders')}</p>
+              <p className="text-xs text-slate-500">{t('settings.notifications_feature_disabled', 'Feature unavailable')}</p>
             </div>
           </div>
-          <button
-            onClick={toggleNotifications}
-            className={`w-12 h-7 rounded-full transition-colors relative ${
-              settings.notificationsEnabled ? 'bg-orange-500' : 'bg-slate-700'
-            }`}
+          {/* Disabled toggle */}
+          <div
+            className="w-12 h-7 rounded-full bg-slate-700 cursor-not-allowed relative"
           >
-            <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm ${
-              settings.notificationsEnabled ? 'translate-x-5' : 'translate-x-0'
-            }`} />
-          </button>
-        </div>
-
-        {settings.notificationsEnabled && (
-          <div className="pt-4 border-t border-slate-800/50">
-            <p className="text-xs font-medium text-slate-400 mb-3 uppercase tracking-wider">
-              {t('settings.reminder_interval', 'Reminder interval')}
-            </p>
-            <div className="grid grid-cols-4 gap-2">
-              {[60, 120, 180, 240].map((minutes) => {
-                const hours = minutes / 60;
-                const isSelected = settings.feedingIntervalMinutes === minutes;
-                return (
-                  <button
-                    key={minutes}
-                    onClick={() => updateFeedingInterval(minutes)}
-                    className={`py-3 px-2 rounded-xl font-bold text-sm transition-all ${
-                      isSelected 
-                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' 
-                        : 'bg-slate-800/80 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
-                    }`}
-                  >
-                    {hours} {t('common.hours_short')}
-                  </button>
-                );
-              })}
-            </div>
+            <div className="absolute top-1 left-1 w-5 h-5 bg-slate-500 rounded-full shadow-sm" />
           </div>
-        )}
+        </div>
       </div>
 
       {/* Language Card - Full Width */}

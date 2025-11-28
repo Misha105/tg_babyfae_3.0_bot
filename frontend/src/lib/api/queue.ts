@@ -1,10 +1,12 @@
-import { syncSchedule, deleteSchedule } from './notifications';
+// NOTIFICATIONS FEATURE DISABLED - schedule sync removed
+// import { syncSchedule, deleteSchedule } from './notifications';
 import { saveActivity, deleteActivity, saveGrowthRecord, deleteGrowthRecord, saveUserProfile, saveUserSettings, saveCustomActivity, deleteCustomActivity } from './sync';
 import { ApiError } from './client';
 import { getCurrentUserId } from '@/store/userContext';
 
 interface QueueItem {
   id: string;
+  // Note: 'update' and 'delete' are deprecated (notifications disabled) but kept for backwards compatibility
   action: 'update' | 'delete' | 'saveActivity' | 'deleteActivity' | 'saveGrowth' | 'deleteGrowth' | 'saveProfile' | 'saveSettings' | 'saveCustomActivity' | 'deleteCustomActivity';
   payload: unknown;
   timestamp: number;
@@ -87,11 +89,10 @@ export const processQueue = async () => {
       const p = item.payload as any;
       
       switch (item.action) {
+        // NOTIFICATIONS FEATURE DISABLED - 'update' and 'delete' schedule actions removed
         case 'update':
-          await syncSchedule(p);
-          break;
         case 'delete':
-          await deleteSchedule(p.id, p.user_id);
+          console.log('[Queue] Skipping disabled notification action:', item.action);
           break;
         case 'saveActivity':
           await saveActivity(p.userId, p.activity);
