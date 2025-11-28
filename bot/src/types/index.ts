@@ -7,7 +7,7 @@ export interface BabyProfile {
   updatedAt: string;
 }
 
-export type ActivityType = 'feeding' | 'medication' | 'sleep' | 'custom';
+export type ActivityType = 'feeding' | 'water' | 'medication' | 'sleep' | 'custom' | 'diaper' | 'pump' | 'bath' | 'walk' | 'play' | 'doctor' | 'other';
 
 export interface ActivityRecord {
   id: string;

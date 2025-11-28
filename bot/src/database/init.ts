@@ -1,6 +1,7 @@
 import sqlite3 from 'sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { logger } from '../utils/logger';
 
 // Ensure data directory exists in production
 const dataDir = process.env.NODE_ENV === 'production' ? '/app/data' : process.cwd();
@@ -14,40 +15,40 @@ const dbPath = process.env.NODE_ENV === 'production'
 
 export const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
-    console.error('Error opening database', err.message);
+    logger.error('Error opening database', { error: err.message, dbPath });
     process.exit(1);
   } else {
-    console.log('Connected to the SQLite database at:', dbPath);
+    logger.info('Connected to SQLite database', { dbPath });
     
     // Configure SQLite for optimal performance and safety
     db.serialize(() => {
       // Enable WAL mode for better concurrency
       db.run('PRAGMA journal_mode = WAL;', (err) => {
         if (err) {
-          console.error('Failed to enable WAL mode:', err);
+          logger.error('Failed to enable WAL mode', { error: err });
         } else {
-          console.log('WAL mode enabled');
+          logger.debug('WAL mode enabled');
         }
       });
       
       // Set synchronous mode to NORMAL for better performance while maintaining safety
       db.run('PRAGMA synchronous = NORMAL;', (err) => {
-        if (err) console.error('Failed to set synchronous mode:', err);
+        if (err) logger.error('Failed to set synchronous mode', { error: err });
       });
       
       // Set WAL autocheckpoint
       db.run('PRAGMA wal_autocheckpoint = 1000;', (err) => {
-        if (err) console.error('Failed to set WAL autocheckpoint:', err);
+        if (err) logger.error('Failed to set WAL autocheckpoint', { error: err });
       });
       
       // Enable foreign keys
       db.run('PRAGMA foreign_keys = ON;', (err) => {
-        if (err) console.error('Failed to enable foreign keys:', err);
+        if (err) logger.error('Failed to enable foreign keys', { error: err });
       });
       
       // Set cache size (negative value means KB, -2000 = 2MB)
       db.run('PRAGMA cache_size = -2000;', (err) => {
-        if (err) console.error('Failed to set cache size:', err);
+        if (err) logger.error('Failed to set cache size', { error: err });
       });
       
       initDatabase();
@@ -121,6 +122,6 @@ function initDatabase() {
     db.run('CREATE INDEX IF NOT EXISTS idx_notification_schedules_next_run ON notification_schedules(next_run, enabled) WHERE enabled = 1');
     db.run('CREATE INDEX IF NOT EXISTS idx_notification_schedules_user ON notification_schedules(user_id)');
     
-    console.log('All database tables and indexes initialized.');
+    logger.info('All database tables and indexes initialized');
   });
 }

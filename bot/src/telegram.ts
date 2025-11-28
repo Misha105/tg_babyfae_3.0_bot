@@ -1,5 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
 import dotenv from 'dotenv';
+import { logger } from './utils/logger';
 
 // Fix deprecation warning for file uploads
 process.env.NTBA_FIX_350 = '1';
@@ -32,10 +33,10 @@ if (token) {
 
     // Handle polling errors to prevent crash
     bot.on('polling_error', (error) => {
-        console.error('Polling error:', error.message);
+        logger.error('Telegram polling error', { error: error.message });
     });
 } else {
-    console.warn('TELEGRAM_BOT_TOKEN not set, bot features disabled');
+    logger.warn('TELEGRAM_BOT_TOKEN not set, bot features disabled');
 }
 
 export default bot;

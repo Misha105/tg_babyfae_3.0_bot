@@ -24,7 +24,7 @@ dotenv.config();
 // In production, WEBAPP_URL is required for correct origin checks in auth middleware.
 // This guards against misconfiguration where Telegram WebApp requests could bypass origin validation.
 if (process.env.NODE_ENV === 'production' && !process.env.WEBAPP_URL) {
-  console.error('FATAL: WEBAPP_URL must be set in production for secure Telegram WebApp authentication');
+  logger.error('FATAL: WEBAPP_URL must be set in production for secure Telegram WebApp authentication');
   process.exit(1);
 }
 
@@ -68,7 +68,7 @@ const limiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many requests. Please try again later.' },
   handler: (req, res) => {
-    console.warn('[RATE_LIMIT] General limit exceeded:', {
+    logger.warn('[RATE_LIMIT] General limit exceeded', {
       ip: req.ip,
       path: req.path,
       userId: req.telegramUser?.id
@@ -85,7 +85,7 @@ const strictLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many requests. Please wait a minute.' },
   handler: (req, res) => {
-    console.warn('[RATE_LIMIT] Strict limit exceeded:', {
+    logger.warn('[RATE_LIMIT] Strict limit exceeded', {
       ip: req.ip,
       path: req.path,
       userId: req.telegramUser?.id
@@ -102,7 +102,7 @@ const backupLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    console.warn('[RATE_LIMIT] Backup limit exceeded:', {
+    logger.warn('[RATE_LIMIT] Backup limit exceeded', {
       ip: req.ip,
       userId: req.telegramUser?.id
     });
@@ -139,9 +139,9 @@ if (bot && shouldRunBot) {
         );
     });
     
-    console.log('Bot started in polling mode');
+    logger.info('Bot started in polling mode');
 } else {
-    console.warn('TELEGRAM_BOT_TOKEN not set, bot features disabled');
+    logger.warn('TELEGRAM_BOT_TOKEN not set, bot features disabled');
 }
 
 // Health check endpoint (no auth required)

@@ -5,7 +5,7 @@ Telegram Mini App for infant care tracking.
 ## Project Structure
 
 - `frontend/`: React + Vite + Tailwind CSS (The Mini App)
-- `bot/`: Node.js + Express + Telegraf (The Backend & Bot)
+- `bot/`: Node.js + Express + node-telegram-bot-api (The Backend & Bot)
 
 ## Getting Started
 

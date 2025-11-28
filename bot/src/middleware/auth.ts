@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { logger } from '../utils/logger';
 
 interface TelegramUser {
   id: number;
@@ -77,7 +78,7 @@ export function validateTelegramWebAppData(initData: string, botToken: string): 
     const maxAge = 24 * 60 * 60; // 24 hours
     
     if (currentTime - authDate > maxAge) {
-      console.warn('Telegram initData is too old:', { authDate, currentTime, age: currentTime - authDate });
+      logger.warn('Telegram initData is too old', { authDate, currentTime, age: currentTime - authDate });
       return null;
     }
     
@@ -95,7 +96,7 @@ export function validateTelegramWebAppData(initData: string, botToken: string): 
       hash
     };
   } catch (error) {
-    console.error('Error validating Telegram initData:', error);
+    logger.error('Error validating Telegram initData', { error });
     return null;
   }
 }
@@ -107,7 +108,7 @@ export function authenticateTelegramUser(req: Request, res: Response, next: Next
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   
   if (!botToken) {
-    console.error('[AUTH] TELEGRAM_BOT_TOKEN is not set');
+    logger.error('[AUTH] TELEGRAM_BOT_TOKEN is not set');
     return res.status(500).json({ error: 'Server configuration error' });
   }
   
@@ -115,7 +116,7 @@ export function authenticateTelegramUser(req: Request, res: Response, next: Next
   const initData = req.headers['x-telegram-init-data'] as string;
   
   if (!initData) {
-    console.warn('[AUTH] Missing initData from IP:', req.ip);
+    logger.warn('[AUTH] Missing initData', { ip: req.ip });
     return res.status(401).json({ error: 'Unauthorized: Missing Telegram authentication data' });
   }
   
@@ -123,7 +124,7 @@ export function authenticateTelegramUser(req: Request, res: Response, next: Next
   const validatedData = validateTelegramWebAppData(initData, botToken);
   
   if (!validatedData || !validatedData.user) {
-    console.warn('[AUTH] Invalid initData from IP:', req.ip);
+    logger.warn('[AUTH] Invalid initData', { ip: req.ip });
     return res.status(401).json({ error: 'Unauthorized: Invalid Telegram authentication data' });
   }
   
@@ -136,7 +137,7 @@ export function authenticateTelegramUser(req: Request, res: Response, next: Next
     const expectedUrl = new URL(expectedOrigin);
     
     if (originUrl.origin !== expectedUrl.origin) {
-      console.warn('[AUTH] Origin mismatch:', { received: originUrl.origin, expected: expectedUrl.origin, userId: validatedData.user.id });
+      logger.warn('[AUTH] Origin mismatch', { received: originUrl.origin, expected: expectedUrl.origin, userId: validatedData.user.id });
       return res.status(403).json({ error: 'Forbidden: Invalid origin' });
     }
   }
@@ -145,7 +146,7 @@ export function authenticateTelegramUser(req: Request, res: Response, next: Next
   req.telegramUser = validatedData.user;
   
   // Log successful authentication
-  console.log('[AUTH] User authenticated:', { userId: validatedData.user.id, username: validatedData.user.username });
+  logger.debug('[AUTH] User authenticated', { userId: validatedData.user.id, username: validatedData.user.username });
   
   next();
 }
@@ -167,7 +168,7 @@ export function verifyUserAccess(req: Request, res: Response, next: NextFunction
   }
   
   if (requestedUserId !== authenticatedUserId) {
-    console.warn(`Access denied: User ${authenticatedUserId} attempted to access data of user ${requestedUserId}`);
+    logger.warn('Access denied: user attempted to access another user data', { authenticatedUserId, requestedUserId });
     return res.status(403).json({ error: 'Forbidden: Access denied' });
   }
   

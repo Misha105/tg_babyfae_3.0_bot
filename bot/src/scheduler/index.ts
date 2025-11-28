@@ -4,6 +4,7 @@ import { dbAsync } from '../database/db-helper';
 import { getLocale } from '../locales';
 import type { NotificationScheduleRow } from '../types/db';
 import { calculateNextRun } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
 
 interface ScheduleData {
   intervalMinutes?: number;
@@ -21,7 +22,7 @@ let isProcessingNotifications = false;
 export const initScheduler = (bot: TelegramBot) => {
   cron.schedule('* * * * *', async () => {
     if (isProcessingNotifications) {
-      console.warn('Notification scheduler still running, skipping this tick');
+      logger.warn('Notification scheduler still running, skipping this tick');
       return;
     }
 
@@ -32,7 +33,7 @@ export const initScheduler = (bot: TelegramBot) => {
       isProcessingNotifications = false;
     }
   });
-  console.log('Scheduler initialized');
+  logger.info('Scheduler initialized');
 };
 
 const checkNotifications = async (bot: TelegramBot) => {
@@ -60,7 +61,7 @@ const checkNotifications = async (bot: TelegramBot) => {
           }
         }
       } catch (e) {
-        console.error('Error parsing data for notification', row.id, e);
+        logger.error('Error parsing data for notification', { scheduleId: row.id, error: e });
         continue; // Skip malformed data
       }
 
@@ -81,13 +82,13 @@ const checkNotifications = async (bot: TelegramBot) => {
         const message = getNotificationMessage(row, scheduleData);
         await bot.sendMessage(row.chat_id, message);
       } catch (e) {
-        console.error('Failed to send message', row.id, e);
+        logger.error('Failed to send notification message', { scheduleId: row.id, chatId: row.chat_id, error: e });
         // Roll back next_run so the notification can retry soon
         await dbAsync.run('UPDATE notification_schedules SET next_run = ? WHERE id = ?', [row.next_run, row.id]);
       }
     }
   } catch (err) {
-    console.error('Error querying notifications', err);
+    logger.error('Error querying notifications', { error: err });
   }
 };
 

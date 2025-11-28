@@ -20,6 +20,11 @@ import { calculateNextRun } from '../utils/dateUtils';
 // Limit import payloads to reduce DoS risk and enforce audit finding #2 safeguards.
 const MAX_IMPORT_RECORDS = 5000;
 
+// Per-user limits to prevent resource exhaustion (audit finding P4)
+const MAX_CUSTOM_ACTIVITIES_PER_USER = 50;
+const MAX_GROWTH_RECORDS_PER_USER = 1000;
+const MAX_ACTIVITIES_PER_USER = 50000; // ~137 activities/day for 1 year
+
 // Types for import data validation
 interface ImportedActivity {
   id?: string;
@@ -53,7 +58,7 @@ const safeJsonParse = <T = unknown>(data: string | null, fallback: T | null = nu
   try {
     return JSON.parse(data) as T;
   } catch (e) {
-    console.error('JSON Parse Error:', e);
+    logger.error('JSON Parse Error', { error: e });
     return fallback;
   }
 };
@@ -128,7 +133,7 @@ export const saveUserProfile = async (req: Request, res: Response) => {
       ON CONFLICT(telegram_id) DO UPDATE SET profile_data = excluded.profile_data
     `;
     await dbAsync.run(sql, [telegramId, JSON.stringify(profile)]);
-    console.log(`Profile saved for user ${telegramId}`);
+    logger.info('Profile saved', { userId: telegramId });
     res.json({ success: true });
   } catch (err: unknown) {
     logger.error('Error saving profile', { error: err, userId: telegramId });
@@ -161,7 +166,7 @@ export const saveUserSettings = async (req: Request, res: Response) => {
       ON CONFLICT(telegram_id) DO UPDATE SET settings_data = excluded.settings_data
     `;
     await dbAsync.run(sql, [telegramId, JSON.stringify(settings)]);
-    console.log(`Settings saved for user ${telegramId}`);
+    logger.info('Settings saved', { userId: telegramId });
     res.json({ success: true });
   } catch (err: unknown) {
     logger.error('Error saving settings', { error: err, userId: telegramId });
@@ -186,6 +191,27 @@ export const saveActivity = async (req: Request, res: Response) => {
   }
 
   try {
+    // Check if this is a new activity (not an update) and enforce limit
+    const existing = await dbAsync.get<{ id: string }>(
+      'SELECT id FROM activities WHERE id = ? AND telegram_id = ?',
+      [activity.id, telegramId]
+    );
+    
+    if (!existing) {
+      // New activity - check limit
+      const countResult = await dbAsync.get<{ cnt: number }>(
+        'SELECT COUNT(*) as cnt FROM activities WHERE telegram_id = ?',
+        [telegramId]
+      );
+      
+      if (countResult && countResult.cnt >= MAX_ACTIVITIES_PER_USER) {
+        logger.warn('Activities limit reached', { userId: telegramId, count: countResult.cnt });
+        return res.status(400).json({ 
+          error: `Maximum of ${MAX_ACTIVITIES_PER_USER} activities allowed` 
+        });
+      }
+    }
+
     const result = await upsertRecord(
       'activities',
       ['id', 'type', 'timestamp', 'data'],
@@ -196,7 +222,7 @@ export const saveActivity = async (req: Request, res: Response) => {
     );
 
     if (!result.success) {
-      console.warn(`Activity ID conflict: User ${telegramId} attempted to modify activity ${activity.id}`);
+      logger.warn('Activity ID conflict', { userId: telegramId, activityId: activity.id });
       return res.status(403).json({ error: result.error });
     }
 
@@ -222,7 +248,7 @@ export const deleteActivity = async (req: Request, res: Response) => {
 
   try {
     const result = await dbAsync.run('DELETE FROM activities WHERE id = ? AND telegram_id = ?', [activityId, telegramId]);
-    console.log(`Activity ${activityId} deleted for user ${telegramId}, rows affected: ${result.changes}`);
+    logger.info('Activity deleted', { userId: telegramId, activityId, changes: result.changes });
     res.json({ success: true });
   } catch (err: unknown) {
     logger.error('Error deleting activity', { error: err, userId: telegramId });
@@ -247,6 +273,27 @@ export const saveCustomActivity = async (req: Request, res: Response) => {
   }
 
   try {
+    // Check if this is a new activity (not an update) and enforce limit
+    const existing = await dbAsync.get<{ id: string }>(
+      'SELECT id FROM custom_activities WHERE id = ? AND telegram_id = ?',
+      [customActivity.id, telegramId]
+    );
+    
+    if (!existing) {
+      // New activity - check limit
+      const countResult = await dbAsync.get<{ cnt: number }>(
+        'SELECT COUNT(*) as cnt FROM custom_activities WHERE telegram_id = ?',
+        [telegramId]
+      );
+      
+      if (countResult && countResult.cnt >= MAX_CUSTOM_ACTIVITIES_PER_USER) {
+        logger.warn('Custom activity limit reached', { userId: telegramId, count: countResult.cnt });
+        return res.status(400).json({ 
+          error: `Maximum of ${MAX_CUSTOM_ACTIVITIES_PER_USER} custom activities allowed` 
+        });
+      }
+    }
+
     const result = await upsertRecord(
       'custom_activities',
       ['id', 'data'],
@@ -257,7 +304,7 @@ export const saveCustomActivity = async (req: Request, res: Response) => {
     );
 
     if (!result.success) {
-      console.warn(`Custom activity ID conflict: User ${telegramId} attempted to modify custom activity ${customActivity.id}`);
+      logger.warn('Custom activity ID conflict', { userId: telegramId, customActivityId: customActivity.id });
       return res.status(403).json({ error: result.error });
     }
 
@@ -300,7 +347,7 @@ export const saveCustomActivity = async (req: Request, res: Response) => {
         await dbAsync.run('DELETE FROM notification_schedules WHERE id = ?', [`custom_${customActivity.id}`]);
       }
     } catch (scheduleErr) {
-      console.error('Error updating schedule for custom activity', scheduleErr);
+      logger.error('Error updating schedule for custom activity', { error: scheduleErr, customActivityId: customActivity.id });
       // Don't fail the request if schedule update fails, but log it
     }
 
@@ -342,6 +389,27 @@ export const saveGrowthRecord = async (req: Request, res: Response) => {
   }
 
   try {
+    // Check if this is a new record (not an update) and enforce limit
+    const existing = await dbAsync.get<{ id: string }>(
+      'SELECT id FROM growth_records WHERE id = ? AND telegram_id = ?',
+      [record.id, telegramId]
+    );
+    
+    if (!existing) {
+      // New record - check limit
+      const countResult = await dbAsync.get<{ cnt: number }>(
+        'SELECT COUNT(*) as cnt FROM growth_records WHERE telegram_id = ?',
+        [telegramId]
+      );
+      
+      if (countResult && countResult.cnt >= MAX_GROWTH_RECORDS_PER_USER) {
+        logger.warn('Growth records limit reached', { userId: telegramId, count: countResult.cnt });
+        return res.status(400).json({ 
+          error: `Maximum of ${MAX_GROWTH_RECORDS_PER_USER} growth records allowed` 
+        });
+      }
+    }
+
     const result = await upsertRecord(
       'growth_records',
       ['id', 'date', 'data'],
@@ -352,7 +420,7 @@ export const saveGrowthRecord = async (req: Request, res: Response) => {
     );
 
     if (!result.success) {
-      console.warn(`Growth record ID conflict: User ${telegramId} attempted to modify growth record ${record.id}`);
+      logger.warn('Growth record ID conflict', { userId: telegramId, recordId: record.id });
       return res.status(403).json({ error: result.error });
     }
 
@@ -517,6 +585,12 @@ export const importUserData = async (req: Request, res: Response) => {
     if (error) {
       return res.status(400).json({ error });
     }
+    // Enforce per-user limit
+    if (data.activities.length > MAX_ACTIVITIES_PER_USER) {
+      return res.status(400).json({ 
+        error: `activities exceed per-user limit of ${MAX_ACTIVITIES_PER_USER}` 
+      });
+    }
   }
 
   if (Array.isArray(data.customActivities)) {
@@ -524,12 +598,24 @@ export const importUserData = async (req: Request, res: Response) => {
     if (error) {
       return res.status(400).json({ error });
     }
+    // Enforce per-user limit
+    if (data.customActivities.length > MAX_CUSTOM_ACTIVITIES_PER_USER) {
+      return res.status(400).json({ 
+        error: `customActivities exceed per-user limit of ${MAX_CUSTOM_ACTIVITIES_PER_USER}` 
+      });
+    }
   }
 
   if (Array.isArray(data.growthRecords)) {
     const error = validatePayloadArray(data.growthRecords, 'growthRecords', validateGrowthRecord);
     if (error) {
       return res.status(400).json({ error });
+    }
+    // Enforce per-user limit
+    if (data.growthRecords.length > MAX_GROWTH_RECORDS_PER_USER) {
+      return res.status(400).json({ 
+        error: `growthRecords exceed per-user limit of ${MAX_GROWTH_RECORDS_PER_USER}` 
+      });
     }
   }
 

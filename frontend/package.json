@@ -50,5 +50,8 @@
   "main": "eslint.config.js",
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "overrides": {
+    "valibot": "^1.2.0"
+  }
 }
