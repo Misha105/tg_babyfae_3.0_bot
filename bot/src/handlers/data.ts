@@ -15,7 +15,7 @@ import {
 import type { ValidationResult } from '../utils/validation';
 import { logger } from '../utils/logger';
 import type { UserRow, ActivityRow, CustomActivityRow, GrowthRecordRow, NotificationScheduleRow } from '../types/db';
-import { calculateNextRun } from '../utils/dateUtils';
+// NOTIFICATIONS FEATURE DISABLED - calculateNextRun import removed
 
 // Limit import payloads to reduce DoS risk and enforce audit finding #2 safeguards.
 const MAX_IMPORT_RECORDS = 5000;
@@ -308,48 +308,8 @@ export const saveCustomActivity = async (req: Request, res: Response) => {
       return res.status(403).json({ error: result.error });
     }
 
-    // Handle Notification Schedule for Custom Activity
-    try {
-      if (customActivity.schedule && (customActivity.schedule.intervalMinutes || (customActivity.schedule.timesOfDay && customActivity.schedule.timesOfDay.length > 0))) {
-        // Fetch user settings for timezone
-        const userRow = await dbAsync.get<UserRow>('SELECT settings_data FROM users WHERE telegram_id = ?', [telegramId]);
-        const settings = userRow ? JSON.parse(userRow.settings_data) : {};
-        const timezone = settings.timezone || 'UTC';
-
-        const nextRun = calculateNextRun(customActivity.schedule, timezone);
-        
-        // Upsert notification_schedules
-        // Include activity name in schedule_data for notification message
-        const scheduleData = {
-          ...customActivity.schedule,
-          activityName: customActivity.name
-        };
-
-        await upsertRecord(
-            'notification_schedules',
-            ['id', 'user_id', 'chat_id', 'type', 'schedule_data', 'next_run', 'enabled'],
-            [
-                `custom_${customActivity.id}`, 
-                telegramId, 
-                telegramId, // Assuming chat_id is same as user_id for now
-                'custom', 
-                JSON.stringify(scheduleData), 
-                nextRun, 
-                1
-            ],
-            'id',
-            ['schedule_data', 'next_run', 'enabled'],
-            telegramId,
-            'user_id'
-        );
-      } else {
-        // If schedule is removed or empty, delete the notification schedule
-        await dbAsync.run('DELETE FROM notification_schedules WHERE id = ?', [`custom_${customActivity.id}`]);
-      }
-    } catch (scheduleErr) {
-      logger.error('Error updating schedule for custom activity', { error: scheduleErr, customActivityId: customActivity.id });
-      // Don't fail the request if schedule update fails, but log it
-    }
+    // NOTIFICATIONS FEATURE DISABLED - schedule creation removed
+    // Custom activities no longer create notification schedules
 
     res.json({ success: true });
   } catch (err: unknown) {
@@ -739,7 +699,8 @@ export const importUserData = async (req: Request, res: Response) => {
         }
       }
 
-      // 6. Import Schedules
+      // 6. Import Schedules (NOTIFICATIONS FEATURE DISABLED - schedules stored but not used)
+      // Kept for backwards compatibility with backup files that contain schedule data
       if (Array.isArray(data.schedules)) {
         const validSchedules = (data.schedules as ImportedSchedule[]).filter((s) => s.id && s.type);
         const CHUNK_SIZE = 50;

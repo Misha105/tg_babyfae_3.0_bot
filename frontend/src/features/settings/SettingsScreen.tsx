@@ -284,8 +284,8 @@ export const SettingsScreen: React.FC = () => {
       </div>
 
       {/* Feeding Reminders Section - DISABLED */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 opacity-50">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-5 opacity-50 pointer-events-none">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-orange-500/10 rounded-xl">
               <Bell size={22} className="text-orange-400" />
@@ -296,9 +296,7 @@ export const SettingsScreen: React.FC = () => {
             </div>
           </div>
           {/* Disabled toggle */}
-          <div
-            className="w-12 h-7 rounded-full bg-slate-700 cursor-not-allowed relative"
-          >
+          <div className="w-12 h-7 rounded-full bg-slate-700 relative">
             <div className="absolute top-1 left-1 w-5 h-5 bg-slate-500 rounded-full shadow-sm" />
           </div>
         </div>
