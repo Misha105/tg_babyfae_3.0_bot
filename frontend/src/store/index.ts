@@ -5,6 +5,7 @@ import { createProfileSlice, type ProfileSlice } from './slices/createProfileSli
 import { createActivitySlice, type ActivitySlice } from './slices/createActivitySlice';
 import { createSettingsSlice, type SettingsSlice } from './slices/createSettingsSlice';
 import { createSleepSlice, type SleepSlice } from './slices/createSleepSlice';
+import { createWalkSlice, type WalkSlice } from './slices/createWalkSlice';
 import { createGrowthSlice, type GrowthSlice } from './slices/createGrowthSlice';
 import { fetchUserData, deleteAllUserData } from '@/lib/api/sync';
 import { processQueue } from '@/lib/api/queue';
@@ -28,7 +29,7 @@ export const setCurrentUserId = setUserContextId;
  */
 export const clearCachedData = clearUserContextData;
 
-type AppState = ProfileSlice & ActivitySlice & SettingsSlice & SleepSlice & GrowthSlice & {
+type AppState = ProfileSlice & ActivitySlice & SettingsSlice & SleepSlice & WalkSlice & GrowthSlice & {
   _hasHydrated: boolean;
   _isServerSynced: boolean;
   _currentUserId: number | null;
@@ -80,6 +81,7 @@ export const useStore = create<AppState>()(
       ...createActivitySlice(set, get, ...a),
       ...createSettingsSlice(set, get, ...a),
       ...createSleepSlice(set, get, ...a),
+      ...createWalkSlice(set, get, ...a),
       ...createGrowthSlice(set, get, ...a),
       _hasHydrated: false,
       _isServerSynced: false,
@@ -113,6 +115,7 @@ export const useStore = create<AppState>()(
             },
             customActivities: [],
             activeSleepStart: null,
+            activeWalkStart: null,
             growthRecords: [],
             _isServerSynced: false,
           });
@@ -130,8 +133,9 @@ export const useStore = create<AppState>()(
           console.log(`[Store] Fetching data from server for user ${userId}`);
           const data = await fetchUserData(userId) as UserDataResponse;
           
-          // Extract activeSleepStart from settings for cross-device persistence
+          // Extract timer states from settings for cross-device persistence
           const serverActiveSleepStart = data?.settings?.activeSleepStart ?? null;
+          const serverActiveWalkStart = data?.settings?.activeWalkStart ?? null;
           
           // Apply server data
           set({
@@ -145,6 +149,7 @@ export const useStore = create<AppState>()(
             customActivities: data?.customActivities || [],
             growthRecords: data?.growthRecords || [],
             activeSleepStart: serverActiveSleepStart, // Restore sleep timer from server
+            activeWalkStart: serverActiveWalkStart, // Restore walk timer from server
             _isServerSynced: true,
             _hasHydrated: true,
           });
@@ -153,6 +158,7 @@ export const useStore = create<AppState>()(
             hasProfile: !!data?.profile,
             activitiesCount: data?.activities?.length || 0,
             activeSleepStart: serverActiveSleepStart,
+            activeWalkStart: serverActiveWalkStart,
           });
         } catch (error) {
           console.error(`[Store] Server sync failed for user ${userId}:`, error);
@@ -175,6 +181,8 @@ export const useStore = create<AppState>()(
                   activities: parsed.state.activities || [],
                   customActivities: parsed.state.customActivities || [],
                   growthRecords: parsed.state.growthRecords || [],
+                  activeSleepStart: parsed.state.activeSleepStart || null, // Restore timer from cache
+                  activeWalkStart: parsed.state.activeWalkStart || null, // Restore timer from cache
                   _hasHydrated: true,
                   _isServerSynced: false, // Mark as not synced
                 });
@@ -247,6 +255,7 @@ export const useStore = create<AppState>()(
             },
             customActivities: [],
             activeSleepStart: null,
+            activeWalkStart: null,
             growthRecords: [],
           });
           
@@ -353,6 +362,7 @@ export const useStore = create<AppState>()(
         settings: state.settings,
         customActivities: state.customActivities,
         activeSleepStart: state.activeSleepStart,
+        activeWalkStart: state.activeWalkStart,
         growthRecords: state.growthRecords,
       }),
       // Skip hydration on initial load - we'll do it manually after getting user ID

@@ -258,6 +258,13 @@ export function validateSettings(settings: unknown): ValidationResult {
     }
   }
   
+  // Validate activeWalkStart - must be null or valid ISO 8601 date string
+  if (sett.activeWalkStart !== undefined && sett.activeWalkStart !== null) {
+    if (!isValidISOString(sett.activeWalkStart)) {
+      return { valid: false, error: 'Invalid activeWalkStart (must be null or valid ISO 8601 date string)' };
+    }
+  }
+  
   return validateJsonSize(settings);
 }
 

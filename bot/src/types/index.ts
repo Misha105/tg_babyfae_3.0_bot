@@ -50,6 +50,9 @@ export interface Settings {
   feedingIntervalMinutes: number;
   notificationsEnabled: boolean;
   themePreference: 'auto' | 'dark' | 'light';
+  activeSleepStart?: string | null; // ISO string - for cross-device persistence
+  activeWalkStart?: string | null; // ISO string - for cross-device persistence
+  timezone?: string; // IANA timezone string (e.g., 'Europe/Moscow')
 }
 
 export interface NotificationSchedule {

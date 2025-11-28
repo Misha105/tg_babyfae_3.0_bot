@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Milk, Pill, Moon, Star, Heart, Sun, Cloud, Music, Book, Bath, Utensils, Droplets, Plus, X, type LucideIcon } from 'lucide-react';
+import { Milk, Pill, Moon, Star, Heart, Sun, Cloud, Music, Book, Bath, Utensils, Droplets, Plus, X, Footprints, type LucideIcon } from 'lucide-react';
 import { ActivityButton } from './ActivityButton';
 import { useStore } from '@/store';
 import type { ActivityType, ActivityRecord, CustomActivityDefinition } from '@/types';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
+import { useWalkTimer } from '@/hooks/useWalkTimer';
 import { ActivityInputModal } from '@/components/ActivityInputModal';
 import { CustomActivityForm } from '../settings/CustomActivityForm';
 import { SleepStartModal } from '@/components/SleepStartModal';
+import { WalkStartModal } from '@/components/WalkStartModal';
 import { v4 as uuidv4 } from 'uuid';
 
 import { formatPreciseTimeAgo } from '@/lib/dateUtils';
@@ -33,9 +35,14 @@ export const Dashboard: React.FC = () => {
   const startSleep = useStore((state) => state.startSleep);
   const endSleep = useStore((state) => state.endSleep);
   
+  const { isActive: isWalkActive, duration: walkDuration, startTime: walkStartTime } = useWalkTimer();
+  const startWalk = useStore((state) => state.startWalk);
+  const endWalk = useStore((state) => state.endWalk);
+  
   const [activeModal, setActiveModal] = useState<ActivityType | null>(null);
   const [showCustomActivityForm, setShowCustomActivityForm] = useState(false);
   const [showSleepModal, setShowSleepModal] = useState(false);
+  const [showWalkModal, setShowWalkModal] = useState(false);
 
   const getLastActivityTime = (type: ActivityType, subType?: string) => {
     const relevantActivities = activities.filter((a) => {
@@ -71,6 +78,25 @@ export const Dashboard: React.FC = () => {
       } else {
         // Start sleep
         setShowSleepModal(true);
+      }
+      return;
+    }
+
+    if (type === 'walk') {
+      if (isWalkActive) {
+        // End walk
+        const now = new Date().toISOString();
+        const newActivity: ActivityRecord = {
+          id: uuidv4(),
+          type: 'walk',
+          timestamp: walkStartTime!,
+          endTimestamp: now,
+        };
+        addActivity(newActivity);
+        endWalk();
+      } else {
+        // Start walk
+        setShowWalkModal(true);
       }
       return;
     }
@@ -117,6 +143,11 @@ export const Dashboard: React.FC = () => {
     setShowSleepModal(false);
   };
 
+  const handleWalkConfirm = (startTime: string) => {
+    startWalk(startTime);
+    setShowWalkModal(false);
+  };
+
   return (
     <>
     <div className="grid grid-cols-2 gap-4">
@@ -145,9 +176,17 @@ export const Dashboard: React.FC = () => {
         label={isSleepActive ? t('dashboard.end_sleep') : t('dashboard.start_sleep')}
         icon={Moon}
         onClick={() => handleActivity('sleep')}
-        lastActivityTime={isSleepActive ? sleepDuration : getLastActivityTime('sleep')}
+        lastActivityTime={isSleepActive ? t('dashboard.sleeping_for', { duration: sleepDuration }) : getLastActivityTime('sleep')}
         color="bg-indigo-900/50 border border-indigo-800"
         isActive={isSleepActive}
+      />
+      <ActivityButton
+        label={isWalkActive ? t('dashboard.end_walk') : t('dashboard.start_walk')}
+        icon={Footprints}
+        onClick={() => handleActivity('walk')}
+        lastActivityTime={isWalkActive ? t('dashboard.walking_for', { duration: walkDuration }) : getLastActivityTime('walk')}
+        color="bg-emerald-900/50 border border-emerald-800"
+        isActive={isWalkActive}
       />
       
       {customActivities.map((activity) => {
@@ -203,6 +242,13 @@ export const Dashboard: React.FC = () => {
       <SleepStartModal
         onClose={() => setShowSleepModal(false)}
         onConfirm={handleSleepConfirm}
+      />
+    )}
+
+    {showWalkModal && (
+      <WalkStartModal
+        onClose={() => setShowWalkModal(false)}
+        onConfirm={handleWalkConfirm}
       />
     )}
 

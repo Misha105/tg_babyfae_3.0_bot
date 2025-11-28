@@ -22,4 +22,24 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React ecosystem
+          'vendor-react': ['react', 'react-dom'],
+          // State management
+          'vendor-zustand': ['zustand'],
+          // Date utilities
+          'vendor-date': ['date-fns'],
+          // Telegram SDK
+          'vendor-telegram': ['@telegram-apps/sdk', '@telegram-apps/sdk-react'],
+          // i18n
+          'vendor-i18n': ['i18next', 'react-i18next'],
+          // UI utilities
+          'vendor-ui': ['lucide-react', 'clsx', 'tailwind-merge', 'class-variance-authority'],
+        },
+      },
+    },
+  },
 })

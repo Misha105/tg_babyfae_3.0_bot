@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { ActivityRecord } from '@/types';
 import { format } from 'date-fns';
-import { Milk, Pill, Moon, Trash2, Edit2, Baby, Bath, Sun, Music, Book, Star, Droplets, Calendar } from 'lucide-react';
+import { Milk, Pill, Moon, Trash2, Edit2, Baby, Bath, Footprints, Gamepad2, Star, Droplets, Calendar, Stethoscope, Circle, Sparkles, FlaskConical } from 'lucide-react';
 import { useStore } from '@/store';
 import { useTranslation } from 'react-i18next';
 import { ActivityInputModal } from '@/components/ActivityInputModal';
@@ -53,6 +53,62 @@ const getActivityStyle = (type: string) => {
         iconBg: 'bg-emerald-500',
         line: 'bg-emerald-500/30'
       };
+    case 'walk':
+      return {
+        bg: 'bg-green-500/10',
+        border: 'border-green-500/20',
+        text: 'text-green-400',
+        iconBg: 'bg-green-500',
+        line: 'bg-green-500/30'
+      };
+    case 'bath':
+      return {
+        bg: 'bg-sky-500/10',
+        border: 'border-sky-500/20',
+        text: 'text-sky-400',
+        iconBg: 'bg-sky-500',
+        line: 'bg-sky-500/30'
+      };
+    case 'pump':
+      return {
+        bg: 'bg-pink-500/10',
+        border: 'border-pink-500/20',
+        text: 'text-pink-400',
+        iconBg: 'bg-pink-500',
+        line: 'bg-pink-500/30'
+      };
+    case 'play':
+      return {
+        bg: 'bg-amber-500/10',
+        border: 'border-amber-500/20',
+        text: 'text-amber-400',
+        iconBg: 'bg-amber-500',
+        line: 'bg-amber-500/30'
+      };
+    case 'doctor':
+      return {
+        bg: 'bg-rose-500/10',
+        border: 'border-rose-500/20',
+        text: 'text-rose-400',
+        iconBg: 'bg-rose-500',
+        line: 'bg-rose-500/30'
+      };
+    case 'custom':
+      return {
+        bg: 'bg-violet-500/10',
+        border: 'border-violet-500/20',
+        text: 'text-violet-400',
+        iconBg: 'bg-violet-500',
+        line: 'bg-violet-500/30'
+      };
+    case 'other':
+      return {
+        bg: 'bg-gray-500/10',
+        border: 'border-gray-500/20',
+        text: 'text-gray-400',
+        iconBg: 'bg-gray-500',
+        line: 'bg-gray-500/30'
+      };
     default:
       return {
         bg: 'bg-slate-800/30',
@@ -72,9 +128,12 @@ const getIcon = (type: string) => {
     case 'sleep': return Moon;
     case 'diaper': return Baby;
     case 'bath': return Bath;
-    case 'walk': return Sun;
-    case 'play': return Music;
-    case 'story': return Book;
+    case 'walk': return Footprints;
+    case 'play': return Gamepad2;
+    case 'pump': return FlaskConical;
+    case 'doctor': return Stethoscope;
+    case 'custom': return Sparkles;
+    case 'other': return Circle;
     default: return Star;
   }
 };
