@@ -54,6 +54,7 @@ export interface Settings {
   notificationsEnabled: boolean;
   themePreference: 'auto' | 'dark' | 'light';
   activeSleepStart?: string | null; // ISO string - synced to server for cross-device persistence
+  timezone?: string;
 }
 
 export interface NotificationSchedule {

@@ -1,5 +1,40 @@
-import { differenceInYears, differenceInMonths, differenceInWeeks, differenceInDays, addYears, addMonths, addWeeks, startOfDay } from 'date-fns';
+import { differenceInYears, differenceInMonths, differenceInWeeks, differenceInDays, addYears, addMonths, addWeeks, startOfDay, intervalToDuration } from 'date-fns';
 import type { TFunction } from 'i18next';
+
+export const formatPreciseTimeAgo = (date: Date, t: TFunction): string => {
+  const now = new Date();
+  if (date > now) return t('time.just_now');
+
+  const duration = intervalToDuration({ start: date, end: now });
+  const { days = 0, hours = 0, minutes = 0 } = duration;
+
+  // Less than 1 minute
+  if (days === 0 && hours === 0 && minutes === 0) {
+    return t('time.just_now');
+  }
+
+  const parts: string[] = [];
+
+  if (days > 0) {
+    parts.push(t('time.days', { count: days }));
+  }
+
+  if (hours > 0) {
+    parts.push(t('time.hours', { count: hours }));
+  }
+
+  if (minutes > 0) {
+    // If we have days, we might skip minutes to keep it short? 
+    // User asked for "5 hours 23 min", so hours + minutes is fine.
+    // If we have days + hours + minutes, it might be too long.
+    // Let's limit to top 2 units.
+    if (parts.length < 2) {
+        parts.push(t('time.minutes_short', { count: minutes }));
+    }
+  }
+
+  return `${parts.join(' ')} ${t('time.ago')}`;
+};
 
 export const formatBabyAge = (birthDate: Date, t: TFunction, referenceDate: Date = new Date()) => {
   // Normalize dates to start of day to avoid time-based discrepancies

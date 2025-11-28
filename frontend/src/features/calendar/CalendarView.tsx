@@ -101,7 +101,7 @@ export const CalendarView: React.FC = () => {
   return (
     <div className="space-y-6 pb-24">
       {/* Header */}
-      <div className="relative z-20 bg-gradient-to-b from-slate-900 via-slate-900/95 to-slate-950/90 backdrop-blur-md border-b border-slate-800/50 -mx-4 px-4 pt-2 pb-4 shadow-lg shadow-black/20">
+      <div className="relative z-20 bg-linear-to-b from-slate-900 via-slate-900/95 to-slate-950/90 backdrop-blur-md border-b border-slate-800/50 -mx-4 px-4 pt-2 pb-4 shadow-lg shadow-black/20">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-white capitalize flex items-center gap-2 cursor-pointer" onClick={() => setIsMonthViewOpen(true)}>
             {format(selectedDate, 'MMMM yyyy', { locale })}
@@ -159,7 +159,7 @@ export const CalendarView: React.FC = () => {
       {/* Month View Modal */}
       {isMonthViewOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-gradient-to-b from-slate-900 to-slate-950 rounded-[2rem] border border-slate-800/50 p-6 w-full max-w-sm shadow-2xl shadow-black/50 relative overflow-hidden">
+          <div className="bg-linear-to-b from-slate-900 to-slate-950 rounded-4xl border border-slate-800/50 p-6 w-full max-w-sm shadow-2xl shadow-black/50 relative overflow-hidden">
             {/* Decorative background blur */}
             <div className="absolute top-0 left-0 w-full h-32 bg-blue-500/5 blur-3xl pointer-events-none" />
             
@@ -194,7 +194,7 @@ export const CalendarView: React.FC = () => {
                     day_selected: { backgroundColor: '#2563eb', color: 'white', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)' },
                     day_today: { border: '1px solid rgba(59, 130, 246, 0.5)', fontWeight: 'bold' }
                   }}
-                  className="text-white !m-0 w-full flex justify-center"
+                  className="text-white m-0! w-full flex justify-center"
                 />
               </div>
             </div>

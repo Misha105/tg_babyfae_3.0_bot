@@ -3,14 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { Milk, Pill, Moon, Star, Heart, Sun, Cloud, Music, Book, Bath, Utensils, Droplets, Plus, X, type LucideIcon } from 'lucide-react';
 import { ActivityButton } from './ActivityButton';
 import { useStore } from '@/store';
-import { formatDistanceToNow } from 'date-fns';
-import { ru, enUS } from 'date-fns/locale';
 import type { ActivityType, ActivityRecord, CustomActivityDefinition } from '@/types';
 import { useSleepTimer } from '@/hooks/useSleepTimer';
 import { ActivityInputModal } from '@/components/ActivityInputModal';
 import { CustomActivityForm } from '../settings/CustomActivityForm';
 import { SleepStartModal } from '@/components/SleepStartModal';
 import { v4 as uuidv4 } from 'uuid';
+
+import { formatPreciseTimeAgo } from '@/lib/dateUtils';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   star: Star,
@@ -24,7 +24,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
 };
 
 export const Dashboard: React.FC = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const activities = useStore((state) => state.activities);
   const addActivity = useStore((state) => state.addActivity);
   const customActivities = useStore((state) => state.customActivities);
@@ -52,10 +52,7 @@ export const Dashboard: React.FC = () => {
       return (new Date(prev.timestamp) > new Date(current.timestamp)) ? prev : current;
     });
     
-    return formatDistanceToNow(new Date(last.timestamp), {
-      addSuffix: true,
-      locale: i18n.language === 'ru' ? ru : enUS,
-    });
+    return formatPreciseTimeAgo(new Date(last.timestamp), t);
   };
 
   const handleActivity = (type: ActivityType) => {

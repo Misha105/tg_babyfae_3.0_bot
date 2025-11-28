@@ -28,7 +28,7 @@ export const ActivityButton: React.FC<ActivityButtonProps> = ({
       <Icon size={32} className="mb-2 text-white drop-shadow-md relative z-10" />
       <span className="font-bold text-white text-sm drop-shadow-md relative z-10 text-center leading-tight">{label}</span>
       {lastActivityTime && (
-        <span className="text-xs text-white/90 mt-1 drop-shadow-md font-medium relative z-10">{lastActivityTime}</span>
+        <span className="text-[10px] leading-tight text-white/90 mt-1 drop-shadow-md font-medium relative z-10 px-1">{lastActivityTime}</span>
       )}
     </button>
   );

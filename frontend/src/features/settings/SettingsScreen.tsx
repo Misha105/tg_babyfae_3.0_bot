@@ -88,8 +88,8 @@ export const SettingsScreen: React.FC = () => {
         try {
           await navigator.share({
             files: [file],
-            title: 'Babyfae Backup',
-            text: 'Babyfae data backup',
+            title: t('settings.share_title'),
+            text: t('settings.share_text'),
           });
           return;
         } catch (shareError) {

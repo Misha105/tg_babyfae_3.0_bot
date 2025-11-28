@@ -19,7 +19,7 @@
     "title": "Babyfae",
     "description": "Это приложение работает только через Telegram. Пожалуйста, откройте бота для продолжения.",
     "open_telegram": "Открыть в Telegram",
-    "hint": "Откройте Telegram на телефоне или компьютере и найдите @Babyfae_bot чтобы начать."
+    "hint": "Откройте Telegram на телефоне или компьютере и найдите нашего бота чтобы начать."
   },
   "dashboard": {
     "feeding": "Кормление",
@@ -38,6 +38,17 @@
     "sleeping_time": "Время сна",
     "awake_time": "Время бодрствования",
     "baby": "Малыш"
+  },
+  "time": {
+    "just_now": "только что",
+    "ago": "назад",
+    "days_one": "{{count}} день",
+    "days_few": "{{count}} дня",
+    "days_many": "{{count}} дней",
+    "hours_one": "{{count}} час",
+    "hours_few": "{{count}} часа",
+    "hours_many": "{{count}} часов",
+    "minutes_short": "{{count}} мин"
   },
   "onboarding": {
     "welcome": "Добро пожаловать в Babyfae",
@@ -158,6 +169,8 @@
     "export_error": "Не удалось экспортировать данные",
     "import_success": "Данные успешно импортированы",
     "import_error": "Ошибка импорта. Неверный формат файла.",
+    "share_title": "Резервная копия Babyfae",
+    "share_text": "Резервная копия данных Babyfae",
     "clear_data_confirm_title": "Удалить все данные?",
     "clear_data_confirm_message": "Это действие нельзя отменить. Ваш профиль, все активности и настройки будут удалены безвозвратно.",
     "irreversible_action": "Необратимое действие",

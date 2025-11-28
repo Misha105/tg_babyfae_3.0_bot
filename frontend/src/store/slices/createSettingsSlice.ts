@@ -26,6 +26,7 @@ export const createSettingsSlice: StateCreator<SettingsSlice> = (set) => ({
     feedingIntervalMinutes: 180,
     notificationsEnabled: true,
     themePreference: 'auto',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   },
   customActivities: [],
   updateSettings: (newSettings) => {

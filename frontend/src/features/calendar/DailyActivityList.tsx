@@ -144,7 +144,7 @@ export const DailyActivityList: React.FC<DailyActivityListProps> = ({ activities
                       {t(`activities.${activity.type}`)}
                     </h4>
                     {activity.type === 'medication' && activity.medicationName && (
-                      <p className="text-sm font-medium text-slate-300 break-words">
+                      <p className="text-sm font-medium text-slate-300 wrap-break-word">
                         {activity.medicationName}
                       </p>
                     )}
@@ -157,7 +157,7 @@ export const DailyActivityList: React.FC<DailyActivityListProps> = ({ activities
                       <p className="text-sm text-slate-400">{activity.subType}</p>
                     )}
                     {activity.notes && (
-                      <p className="text-sm text-slate-500 mt-1 italic break-words">"{activity.notes}"</p>
+                      <p className="text-sm text-slate-500 mt-1 italic wrap-break-word">"{activity.notes}"</p>
                     )}
                   </div>
                 </div>

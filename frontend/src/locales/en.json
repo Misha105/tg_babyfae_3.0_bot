@@ -19,7 +19,7 @@
     "title": "Babyfae",
     "description": "This app works exclusively through Telegram. Please open the bot to continue.",
     "open_telegram": "Open in Telegram",
-    "hint": "Open Telegram on your phone or desktop, then search for @Babyfae_bot to get started."
+    "hint": "Open Telegram on your phone or desktop, then search for our bot to get started."
   },
   "dashboard": {
     "feeding": "Feeding",
@@ -38,6 +38,15 @@
     "sleeping_time": "Sleeping Time",
     "awake_time": "Awake Time",
     "baby": "Baby"
+  },
+  "time": {
+    "just_now": "just now",
+    "ago": "ago",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "hours_one": "{{count}} hour",
+    "hours_other": "{{count}} hours",
+    "minutes_short": "{{count}} min"
   },
   "onboarding": {
     "welcome": "Welcome to Babyfae",
@@ -122,6 +131,8 @@
     "export_error": "Failed to export data",
     "import_success": "Data imported successfully",
     "import_error": "Failed to import data. Invalid file format.",
+    "share_title": "Babyfae Backup",
+    "share_text": "Babyfae data backup",
     "clear_data_confirm_title": "Clear All Data?",
     "clear_data_confirm_message": "This will permanently delete your profile, all activities, and settings. This action cannot be undone.",
     "irreversible_action": "Irreversible action",

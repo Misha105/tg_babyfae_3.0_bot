@@ -15,11 +15,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@types/luxon": "^3.7.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
+    "luxon": "^3.7.2",
     "node-cron": "^4.2.1",
     "node-telegram-bot-api": "^0.66.0",
     "sqlite3": "^5.1.7"

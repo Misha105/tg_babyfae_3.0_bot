@@ -15,6 +15,7 @@ import {
 import type { ValidationResult } from '../utils/validation';
 import { logger } from '../utils/logger';
 import type { UserRow, ActivityRow, CustomActivityRow, GrowthRecordRow, NotificationScheduleRow } from '../types/db';
+import { calculateNextRun } from '../utils/dateUtils';
 
 // Limit import payloads to reduce DoS risk and enforce audit finding #2 safeguards.
 const MAX_IMPORT_RECORDS = 5000;
@@ -258,6 +259,49 @@ export const saveCustomActivity = async (req: Request, res: Response) => {
     if (!result.success) {
       console.warn(`Custom activity ID conflict: User ${telegramId} attempted to modify custom activity ${customActivity.id}`);
       return res.status(403).json({ error: result.error });
+    }
+
+    // Handle Notification Schedule for Custom Activity
+    try {
+      if (customActivity.schedule && (customActivity.schedule.intervalMinutes || (customActivity.schedule.timesOfDay && customActivity.schedule.timesOfDay.length > 0))) {
+        // Fetch user settings for timezone
+        const userRow = await dbAsync.get<UserRow>('SELECT settings_data FROM users WHERE telegram_id = ?', [telegramId]);
+        const settings = userRow ? JSON.parse(userRow.settings_data) : {};
+        const timezone = settings.timezone || 'UTC';
+
+        const nextRun = calculateNextRun(customActivity.schedule, timezone);
+        
+        // Upsert notification_schedules
+        // Include activity name in schedule_data for notification message
+        const scheduleData = {
+          ...customActivity.schedule,
+          activityName: customActivity.name
+        };
+
+        await upsertRecord(
+            'notification_schedules',
+            ['id', 'user_id', 'chat_id', 'type', 'schedule_data', 'next_run', 'enabled'],
+            [
+                `custom_${customActivity.id}`, 
+                telegramId, 
+                telegramId, // Assuming chat_id is same as user_id for now
+                'custom', 
+                JSON.stringify(scheduleData), 
+                nextRun, 
+                1
+            ],
+            'id',
+            ['schedule_data', 'next_run', 'enabled'],
+            telegramId,
+            'user_id'
+        );
+      } else {
+        // If schedule is removed or empty, delete the notification schedule
+        await dbAsync.run('DELETE FROM notification_schedules WHERE id = ?', [`custom_${customActivity.id}`]);
+      }
+    } catch (scheduleErr) {
+      console.error('Error updating schedule for custom activity', scheduleErr);
+      // Don't fail the request if schedule update fails, but log it
     }
 
     res.json({ success: true });

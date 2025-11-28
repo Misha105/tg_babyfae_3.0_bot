@@ -9,15 +9,18 @@ dotenv.config();
 const token = process.env.TELEGRAM_BOT_TOKEN;
 let bot: TelegramBot | null = null;
 
+// Check if polling should be enabled (default: true)
+const shouldPoll = process.env.ENABLE_BOT_POLLING !== 'false';
+
 if (token) {
     bot = new TelegramBot(token, { 
-        polling: {
+        polling: shouldPoll ? {
             interval: 300,
             autoStart: true,
             params: {
                 timeout: 10
             }
-        },
+        } : false,
         request: {
             agentOptions: {
                 keepAlive: true,
