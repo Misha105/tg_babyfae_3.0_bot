@@ -1,11 +1,54 @@
 import React, { useState } from 'react';
 import type { ActivityRecord } from '@/types';
 import { format } from 'date-fns';
-import { Milk, Pill, Moon, Trash2, Edit2, Baby, Bath, Footprints, Gamepad2, Star, Droplets, Calendar, Stethoscope, Circle, Sparkles, FlaskConical } from 'lucide-react';
+import { Milk, Pill, Moon, Trash2, Edit2, Baby, Bath, Footprints, Gamepad2, Star, Droplets, Calendar, Stethoscope, Circle, Sparkles, FlaskConical, Heart, Sun, Cloud, Music, Book, Utensils, type LucideIcon } from 'lucide-react';
 import { useStore } from '@/store';
 import { useTranslation } from 'react-i18next';
 import { ActivityInputModal } from '@/components/ActivityInputModal';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+
+// Icon map for custom activities
+const CUSTOM_ICON_MAP: Record<string, LucideIcon> = {
+  star: Star,
+  heart: Heart,
+  sun: Sun,
+  cloud: Cloud,
+  music: Music,
+  book: Book,
+  bath: Bath,
+  utensils: Utensils,
+};
+
+// Extract color name from Tailwind class (e.g., 'bg-blue-500' -> 'blue')
+const extractColorName = (colorClass: string): string => {
+  const match = colorClass.match(/bg-(\w+)-\d+/);
+  return match ? match[1] : 'violet';
+};
+
+// Get style classes for a custom activity color
+const getCustomActivityStyle = (colorClass: string) => {
+  const color = extractColorName(colorClass);
+  const colorMap: Record<string, { bg: string; border: string; text: string; iconBg: string; line: string }> = {
+    red: { bg: 'bg-red-500/10', border: 'border-red-500/20', text: 'text-red-400', iconBg: 'bg-red-500', line: 'bg-red-500/30' },
+    orange: { bg: 'bg-orange-500/10', border: 'border-orange-500/20', text: 'text-orange-400', iconBg: 'bg-orange-500', line: 'bg-orange-500/30' },
+    amber: { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-400', iconBg: 'bg-amber-500', line: 'bg-amber-500/30' },
+    yellow: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', text: 'text-yellow-400', iconBg: 'bg-yellow-500', line: 'bg-yellow-500/30' },
+    lime: { bg: 'bg-lime-500/10', border: 'border-lime-500/20', text: 'text-lime-400', iconBg: 'bg-lime-500', line: 'bg-lime-500/30' },
+    green: { bg: 'bg-green-500/10', border: 'border-green-500/20', text: 'text-green-400', iconBg: 'bg-green-500', line: 'bg-green-500/30' },
+    emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-400', iconBg: 'bg-emerald-500', line: 'bg-emerald-500/30' },
+    teal: { bg: 'bg-teal-500/10', border: 'border-teal-500/20', text: 'text-teal-400', iconBg: 'bg-teal-500', line: 'bg-teal-500/30' },
+    cyan: { bg: 'bg-cyan-500/10', border: 'border-cyan-500/20', text: 'text-cyan-400', iconBg: 'bg-cyan-500', line: 'bg-cyan-500/30' },
+    sky: { bg: 'bg-sky-500/10', border: 'border-sky-500/20', text: 'text-sky-400', iconBg: 'bg-sky-500', line: 'bg-sky-500/30' },
+    blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-400', iconBg: 'bg-blue-500', line: 'bg-blue-500/30' },
+    indigo: { bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', text: 'text-indigo-400', iconBg: 'bg-indigo-500', line: 'bg-indigo-500/30' },
+    violet: { bg: 'bg-violet-500/10', border: 'border-violet-500/20', text: 'text-violet-400', iconBg: 'bg-violet-500', line: 'bg-violet-500/30' },
+    purple: { bg: 'bg-purple-500/10', border: 'border-purple-500/20', text: 'text-purple-400', iconBg: 'bg-purple-500', line: 'bg-purple-500/30' },
+    fuchsia: { bg: 'bg-fuchsia-500/10', border: 'border-fuchsia-500/20', text: 'text-fuchsia-400', iconBg: 'bg-fuchsia-500', line: 'bg-fuchsia-500/30' },
+    pink: { bg: 'bg-pink-500/10', border: 'border-pink-500/20', text: 'text-pink-400', iconBg: 'bg-pink-500', line: 'bg-pink-500/30' },
+    rose: { bg: 'bg-rose-500/10', border: 'border-rose-500/20', text: 'text-rose-400', iconBg: 'bg-rose-500', line: 'bg-rose-500/30' },
+  };
+  return colorMap[color] || colorMap.violet;
+};
 
 interface DailyActivityListProps {
   activities: ActivityRecord[];
@@ -142,8 +185,24 @@ export const DailyActivityList: React.FC<DailyActivityListProps> = ({ activities
   const { t } = useTranslation();
   const removeActivity = useStore((state) => state.removeActivity);
   const updateActivity = useStore((state) => state.updateActivity);
+  const customActivities = useStore((state) => state.customActivities);
   const [editingActivity, setEditingActivity] = useState<ActivityRecord | null>(null);
   const [activityToDelete, setActivityToDelete] = useState<string | null>(null);
+
+  // Helper to find custom activity definition by id or name
+  const findCustomActivityDef = (activity: ActivityRecord) => {
+    if (activity.type !== 'custom') return null;
+    // First try by customActivityId in metadata
+    if (activity.metadata?.customActivityId) {
+      const def = customActivities.find(ca => ca.id === activity.metadata?.customActivityId);
+      if (def) return def;
+    }
+    // Fallback: find by subType (name)
+    if (activity.subType) {
+      return customActivities.find(ca => ca.name === activity.subType);
+    }
+    return null;
+  };
 
   // Sort by time descending
   const sortedActivities = [...activities].sort(
@@ -168,8 +227,16 @@ export const DailyActivityList: React.FC<DailyActivityListProps> = ({ activities
       <div className="absolute left-[27px] top-2 bottom-2 w-0.5 bg-slate-800/50 rounded-full" />
 
       {sortedActivities.map((activity) => {
-        const Icon = getIcon(activity.type);
-        const style = getActivityStyle(activity.type);
+        // Get custom activity definition if this is a custom type
+        const customDef = findCustomActivityDef(activity);
+        
+        // Use custom icon and style if available
+        const Icon = customDef && CUSTOM_ICON_MAP[customDef.icon] 
+          ? CUSTOM_ICON_MAP[customDef.icon] 
+          : getIcon(activity.type);
+        const style = customDef 
+          ? getCustomActivityStyle(customDef.color) 
+          : getActivityStyle(activity.type);
         
         return (
           <div key={activity.id} className="relative pl-10 group">

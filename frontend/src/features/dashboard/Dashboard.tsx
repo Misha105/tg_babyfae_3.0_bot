@@ -7,6 +7,7 @@ import type { ActivityType, ActivityRecord, CustomActivityDefinition } from '@/t
 import { useSleepTimer } from '@/hooks/useSleepTimer';
 import { useWalkTimer } from '@/hooks/useWalkTimer';
 import { ActivityInputModal } from '@/components/ActivityInputModal';
+import { CustomActivityInputModal } from '@/components/CustomActivityInputModal';
 import { CustomActivityForm } from '../settings/CustomActivityForm';
 import { SleepStartModal } from '@/components/SleepStartModal';
 import { WalkStartModal } from '@/components/WalkStartModal';
@@ -43,6 +44,7 @@ export const Dashboard: React.FC = () => {
   const [showCustomActivityForm, setShowCustomActivityForm] = useState(false);
   const [showSleepModal, setShowSleepModal] = useState(false);
   const [showWalkModal, setShowWalkModal] = useState(false);
+  const [selectedCustomActivity, setSelectedCustomActivity] = useState<CustomActivityDefinition | null>(null);
 
   const getLastActivityTime = (type: ActivityType, subType?: string) => {
     const relevantActivities = activities.filter((a) => {
@@ -115,14 +117,23 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleCustomActivity = (activityDef: CustomActivityDefinition) => {
+    setSelectedCustomActivity(activityDef);
+  };
+
+  const handleCustomActivitySave = (data: { startTime: string; endTime?: string; notes?: string }) => {
+    if (!selectedCustomActivity) return;
+    
     const newActivity: ActivityRecord = {
       id: uuidv4(),
       type: 'custom',
-      subType: activityDef.name,
-      timestamp: new Date().toISOString(),
-      metadata: { customActivityId: activityDef.id }
+      subType: selectedCustomActivity.name,
+      timestamp: data.startTime,
+      endTimestamp: data.endTime,
+      notes: data.notes,
+      metadata: { customActivityId: selectedCustomActivity.id }
     };
     addActivity(newActivity);
+    setSelectedCustomActivity(null);
   };
 
   const handleActivitySave = (data: Partial<ActivityRecord>) => {
@@ -252,6 +263,14 @@ export const Dashboard: React.FC = () => {
       />
     )}
 
+    {selectedCustomActivity && (
+      <CustomActivityInputModal
+        activityDefinition={selectedCustomActivity}
+        onClose={() => setSelectedCustomActivity(null)}
+        onSave={handleCustomActivitySave}
+      />
+    )}
+
     {activeModal && (
       <ActivityInputModal
         type={activeModal}
@@ -263,4 +282,3 @@ export const Dashboard: React.FC = () => {
     </>
   );
 };
-

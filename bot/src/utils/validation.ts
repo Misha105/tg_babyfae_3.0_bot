@@ -8,6 +8,18 @@ const MAX_NOTES_LENGTH = 300;
 const MAX_MEDICATION_NAME_LENGTH = 50;
 const MAX_CUSTOM_ACTIVITY_NAME_LENGTH = 50;
 
+// Allowed icons for custom activities (must match frontend ICONS array)
+const ALLOWED_ICONS = ['star', 'heart', 'sun', 'cloud', 'music', 'book', 'bath', 'utensils'];
+
+// Allowed colors for custom activities (must match frontend COLORS array)
+const ALLOWED_COLORS = [
+  'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-yellow-500',
+  'bg-lime-500', 'bg-green-500', 'bg-emerald-500', 'bg-teal-500',
+  'bg-cyan-500', 'bg-sky-500', 'bg-blue-500', 'bg-indigo-500',
+  'bg-violet-500', 'bg-purple-500', 'bg-fuchsia-500', 'bg-pink-500',
+  'bg-rose-500'
+];
+
 export interface ValidationResult {
   valid: boolean;
   error?: string;
@@ -111,6 +123,21 @@ export function validateActivity(activity: unknown): ValidationResult {
     return { valid: false, error: 'Invalid timestamp format' };
   }
   
+  // Validate endTimestamp if present (for sleep, walk, custom activities)
+  if (act.endTimestamp !== undefined && act.endTimestamp !== null) {
+    if (typeof act.endTimestamp !== 'string') {
+      return { valid: false, error: 'End timestamp must be a string' };
+    }
+    const endTimestamp = new Date(act.endTimestamp);
+    if (isNaN(endTimestamp.getTime())) {
+      return { valid: false, error: 'Invalid end timestamp format' };
+    }
+    // End time must be after start time
+    if (endTimestamp <= timestamp) {
+      return { valid: false, error: 'End time must be after start time' };
+    }
+  }
+  
   // Validate optional fields
   if (act.notes && typeof act.notes === 'string') {
     const notesValidation = validateStringLength(act.notes, MAX_NOTES_LENGTH, 'Notes');
@@ -127,6 +154,23 @@ export function validateActivity(activity: unknown): ValidationResult {
     if (isNaN(amount) || amount < 0 || amount > 10000) {
       return { valid: false, error: 'Invalid amount value' };
     }
+  }
+  
+  // Validate unit if present (for feeding, water, medication)
+  if (act.unit !== undefined && act.unit !== null) {
+    const validUnits = ['ml', 'mg', 'gr', 'drops', 'pieces'];
+    if (typeof act.unit !== 'string' || !validUnits.includes(act.unit)) {
+      return { valid: false, error: `Invalid unit. Allowed values: ${validUnits.join(', ')}` };
+    }
+  }
+  
+  // Validate subType for custom activities
+  if (act.subType !== undefined && act.subType !== null) {
+    if (typeof act.subType !== 'string') {
+      return { valid: false, error: 'SubType must be a string' };
+    }
+    const subTypeValidation = validateStringLength(act.subType, MAX_CUSTOM_ACTIVITY_NAME_LENGTH, 'SubType');
+    if (!subTypeValidation.valid) return subTypeValidation;
   }
   
   // Validate JSON size
@@ -153,6 +197,16 @@ export function validateCustomActivity(customActivity: unknown): ValidationResul
   
   const nameValidation = validateStringLength(ca.name, MAX_CUSTOM_ACTIVITY_NAME_LENGTH, 'Custom activity name');
   if (!nameValidation.valid) return nameValidation;
+  
+  // Validate icon - must be from allowed list
+  if (!ca.icon || typeof ca.icon !== 'string' || !ALLOWED_ICONS.includes(ca.icon)) {
+    return { valid: false, error: `Invalid icon. Allowed values: ${ALLOWED_ICONS.join(', ')}` };
+  }
+  
+  // Validate color - must be from allowed list
+  if (!ca.color || typeof ca.color !== 'string' || !ALLOWED_COLORS.includes(ca.color)) {
+    return { valid: false, error: 'Invalid color value' };
+  }
   
   return validateJsonSize(customActivity);
 }

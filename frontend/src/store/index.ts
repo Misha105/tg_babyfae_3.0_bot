@@ -286,7 +286,17 @@ export const useStore = create<AppState>()(
           // Server is the source of truth - apply server data directly
           // This prevents data leakage between users
           if (data?.profile) set({ profile: data.profile });
-          if (data?.settings) set({ settings: data.settings });
+          if (data?.settings) {
+            // Extract timer states from settings for cross-device persistence
+            const serverActiveSleepStart = data.settings.activeSleepStart ?? null;
+            const serverActiveWalkStart = data.settings.activeWalkStart ?? null;
+            
+            set({ 
+              settings: data.settings,
+              activeSleepStart: serverActiveSleepStart,
+              activeWalkStart: serverActiveWalkStart,
+            });
+          }
           
           // For activities, we still merge to preserve offline changes
           if (data?.activities && Array.isArray(data.activities)) {

@@ -160,12 +160,25 @@ export const saveUserSettings = async (req: Request, res: Response) => {
   }
 
   try {
+    // First, get existing settings to merge with new ones
+    const existingUser = await dbAsync.get<UserRow>(
+      'SELECT settings_data FROM users WHERE telegram_id = ?',
+      [telegramId]
+    );
+    
+    const existingSettings = existingUser?.settings_data 
+      ? safeJsonParse(existingUser.settings_data, {}) 
+      : {};
+    
+    // Merge existing settings with new ones (new values override existing)
+    const mergedSettings = { ...existingSettings, ...settings };
+    
     const sql = `
       INSERT INTO users (telegram_id, settings_data)
       VALUES (?, ?)
       ON CONFLICT(telegram_id) DO UPDATE SET settings_data = excluded.settings_data
     `;
-    await dbAsync.run(sql, [telegramId, JSON.stringify(settings)]);
+    await dbAsync.run(sql, [telegramId, JSON.stringify(mergedSettings)]);
     logger.info('Settings saved', { userId: telegramId });
     res.json({ success: true });
   } catch (err: unknown) {

@@ -91,6 +91,7 @@
     "medication_name": "Medication Name",
     "notes": "Notes",
     "and": "and",
+    "optional": "optional",
     "error_generic": "An error occurred"
   },
   "units": {

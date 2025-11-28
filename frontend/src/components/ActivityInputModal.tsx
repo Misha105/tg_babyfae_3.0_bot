@@ -146,7 +146,9 @@ export const ActivityInputModal: React.FC<ActivityInputModalProps> = ({
         >
           <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
           <h3 className="text-lg font-bold text-white capitalize">
-            {t(`dashboard.${type}`)}
+            {type === 'custom' && initialData?.subType 
+              ? initialData.subType 
+              : t(`dashboard.${type}`)}
           </h3>
           <button 
             onClick={onClose}
@@ -181,11 +183,11 @@ export const ActivityInputModal: React.FC<ActivityInputModalProps> = ({
             </div>
           </div>
 
-          {/* End Time Input (for Sleep) */}
-          {(type === 'sleep' || endTimestamp) && (
+          {/* End Time Input (for Sleep, Walk, Custom or if already has endTimestamp) */}
+          {(type === 'sleep' || type === 'walk' || type === 'custom' || endTimestamp) && (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-400 ml-1">
-                {t('calendar.end_time')}
+                {t('calendar.end_time')} {type !== 'sleep' && <span className="text-slate-600">({t('common.optional')})</span>}
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
