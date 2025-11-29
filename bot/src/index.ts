@@ -25,7 +25,15 @@ dotenv.config();
 // This guards against misconfiguration where Telegram WebApp requests could bypass origin validation.
 if (process.env.NODE_ENV === 'production' && !process.env.WEBAPP_URL) {
   logger.error('FATAL: WEBAPP_URL must be set in production for secure Telegram WebApp authentication');
-  process.exit(1);
+
+  const delaySeconds = Number(process.env.WEBAPP_STRICT_EXIT_DELAY ?? '10');
+  logger.error(`Application will exit in ${delaySeconds}s due to missing WEBAPP_URL. Set WEBAPP_URL or adjust WEBAPP_STRICT_EXIT_DELAY to change this behavior.`);
+
+  // Schedule a delayed exit to preserve strict behavior while allowing ephemeral health checks
+  setTimeout(() => {
+    logger.error('Exiting application due to missing WEBAPP_URL');
+    process.exit(1);
+  }, Math.max(0, delaySeconds) * 1000);
 }
 
 const app = express();
@@ -151,19 +159,24 @@ if (bot && shouldRunBot) {
 app.get('/health', async (_req, res) => {
   try {
     const { dbAsync } = await import('./database/db-helper');
-    await dbAsync.get('SELECT 1');
-    res.json({ 
-      status: 'ok', 
+    // simple query to validate connectivity
+    await dbAsync.get('SELECT 1 as ok');
+    res.json({
+      status: 'ok',
       uptime: process.uptime(),
       database: 'connected',
       timestamp: new Date().toISOString()
     });
-  } catch {
-    res.status(503).json({ 
-      status: 'error', 
+  } catch (err) {
+    logger.warn('Health check failed', { error: err });
+    const payload: Record<string, unknown> = {
+      status: 'error',
       database: 'disconnected',
       timestamp: new Date().toISOString()
-    });
+    };
+    // expose error details only in non-production for debugging
+    if (process.env.NODE_ENV !== 'production') payload.error = String(err);
+    res.status(503).json(payload);
   }
 });
 
