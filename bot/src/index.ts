@@ -69,14 +69,14 @@ const limiter = rateLimit({
   max: 100, // Limit each IP to 100 requests per windowMs
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests. Please try again later.' },
+  message: { error: 'api_error.rate_limit' },
   handler: (req, res) => {
     logger.warn('[RATE_LIMIT] General limit exceeded', {
       ip: req.ip,
       path: req.path,
       userId: req.telegramUser?.id
     });
-    res.status(429).json({ error: 'Too many requests. Please try again later.' });
+    res.status(429).json({ error: 'api_error.rate_limit' });
   }
 });
 
@@ -86,14 +86,14 @@ const strictLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests. Please wait a minute.' },
+  message: { error: 'api_error.rate_limit' },
   handler: (req, res) => {
     logger.warn('[RATE_LIMIT] Strict limit exceeded', {
       ip: req.ip,
       path: req.path,
       userId: req.telegramUser?.id
     });
-    res.status(429).json({ error: 'Too many requests. Please wait a minute.' });
+    res.status(429).json({ error: 'api_error.rate_limit' });
   }
 });
 
@@ -101,7 +101,7 @@ const strictLimiter = rateLimit({
 const backupLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 1,
-  message: { error: 'Too many backup requests. Please wait a minute.' },
+  message: { error: 'api_error.rate_limit' },
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
@@ -109,23 +109,23 @@ const backupLimiter = rateLimit({
       ip: req.ip,
       userId: req.telegramUser?.id
     });
-    res.status(429).json({ error: 'Too many backup requests. Please wait a minute.' });
+    res.status(429).json({ error: 'api_error.rate_limit' });
   }
 });
 
 // Health check limiter (more permissive for monitoring)
 const healthLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // Allow 10 health checks per minute per IP
+  max: 100, // Allow 100 health checks per minute per IP
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many health check requests.' },
+  message: { error: 'api_error.rate_limit' },
   handler: (req, res) => {
     logger.warn('[RATE_LIMIT] Health check limit exceeded', {
       ip: req.ip,
       path: req.path
     });
-    res.status(429).json({ error: 'Too many health check requests.' });
+    res.status(429).json({ error: 'api_error.rate_limit' });
   }
 });
 

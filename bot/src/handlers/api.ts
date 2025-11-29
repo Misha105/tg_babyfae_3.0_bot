@@ -8,9 +8,9 @@ import { Request, Response } from 'express';
  */
 
 export const updateSchedule = async (_req: Request, res: Response) => {
-  return res.status(410).json({ error: 'Notifications feature is disabled' });
+  return res.status(410).json({ error: 'api_error.feature_unavailable' });
 };
 
 export const deleteSchedule = async (_req: Request, res: Response) => {
-  return res.status(410).json({ error: 'Notifications feature is disabled' });
+  return res.status(410).json({ error: 'api_error.feature_unavailable' });
 };

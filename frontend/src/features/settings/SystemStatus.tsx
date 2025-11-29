@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle, XCircle, Database, Clock, RefreshCw, Wifi } from 'lucide-react';
 import { getHealthStatus } from '@/lib/api/client';
-import { getApiErrorMessage } from '@/lib/api/errorHandler';
+import { getApiErrorInfo } from '@/lib/api/errorHandler';
 import { logger } from '@/lib/logger';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
@@ -19,7 +19,7 @@ export const SystemStatus: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchHealth = async () => {
+  const fetchHealth = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -27,16 +27,16 @@ export const SystemStatus: React.FC = () => {
       setHealth(data);
     } catch (err) {
       logger.error('Failed to fetch health status', { error: err });
-      const errorMessage = getApiErrorMessage(err);
-      setError(errorMessage);
+      const errorInfo = getApiErrorInfo(err);
+      setError(t(errorInfo.key, errorInfo.params));
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     fetchHealth();
-  }, []);
+  }, [fetchHealth]);
 
   const formatUptime = (seconds: number): string => {
     try {

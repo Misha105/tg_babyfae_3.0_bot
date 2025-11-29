@@ -104,7 +104,7 @@ export const getUserData = async (req: Request, res: Response) => {
     });
   } catch (err: unknown) {
     logger.error('Error fetching user data', { error: err, userId: telegramId });
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'api_error.internal_server_error' });
   }
 };
 
@@ -118,7 +118,7 @@ export const saveUserProfile = async (req: Request, res: Response) => {
   }
   
   if (!profile) {
-    return res.status(400).json({ error: 'Profile data is required' });
+    return res.status(400).json({ error: 'api_error.data_required' });
   }
   
   const profileValidation = validateProfile(profile);
@@ -137,7 +137,7 @@ export const saveUserProfile = async (req: Request, res: Response) => {
     res.json({ success: true });
   } catch (err: unknown) {
     logger.error('Error saving profile', { error: err, userId: telegramId });
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'api_error.internal_server_error' });
   }
 };
 
@@ -151,7 +151,7 @@ export const saveUserSettings = async (req: Request, res: Response) => {
   }
   
   if (!settings) {
-    return res.status(400).json({ error: 'Settings data is required' });
+    return res.status(400).json({ error: 'api_error.data_required' });
   }
   
   const settingsValidation = validateSettings(settings);
@@ -256,7 +256,7 @@ export const deleteActivity = async (req: Request, res: Response) => {
   }
   
   if (!activityId || typeof activityId !== 'string') {
-    return res.status(400).json({ error: 'Activity ID is required and must be a string' });
+    return res.status(400).json({ error: 'api_error.validation_error' });
   }
 
   try {

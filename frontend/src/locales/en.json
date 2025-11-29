@@ -170,6 +170,17 @@
     "days_ago": "{{count}}d ago",
     "unknown": "Unknown"
   },
+  "api_error": {
+    "access_denied": "Access denied. Please re-open the app and authorize again.",
+    "feature_unavailable": "This feature is no longer available.",
+    "rate_limit": "Too many requests. Please try again later.",
+    "server_message": "{{message}}",
+    "server_error": "Server error ({{status}}).",
+    "network_error": "Network or unknown error. Check your connection or try again.",
+    "validation_error": "Invalid data provided.",
+    "internal_server_error": "Internal server error.",
+    "data_required": "Required data is missing."
+  },
   "calendar": {
     "week_of": "Week of {{date}}",
     "select_date": "Select Date",
