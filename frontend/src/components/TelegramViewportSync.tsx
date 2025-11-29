@@ -105,7 +105,6 @@ export const TelegramViewportSync = () => {
         const insets = typeof tvp.safeAreaInsets === 'function' ? tvp.safeAreaInsets() : tvp.safeAreaInsets;
         
         if (insets) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const getVal = (val: MaybeNumberOrFn | undefined) => typeof val === 'number' ? val : (typeof val === 'function' ? val() : 0);
           
           const top = getVal(insets.top);

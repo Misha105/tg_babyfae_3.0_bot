@@ -249,3 +249,76 @@ export async function apiDelete<T = unknown>(endpoint: string, data?: unknown, o
     ...options,
   });
 }
+
+/**
+ * GET request without authentication (for health check)
+ */
+export async function apiGetPublic<T = unknown>(endpoint: string, options: RequestInit & { timeoutMs?: number; retries?: number } = {}): Promise<T> {
+  const url = `${API_URL}${endpoint}`;
+  const { timeoutMs = 30000, retries = 0, ...restOptions } = options;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      logger.info(`GET ${url} (attempt ${attempt + 1})`);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+        ...restOptions,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const body = await response.text();
+        logger.info(`Response ${response.status}: ${body}`);
+        throw new ApiError(response.status, `HTTP ${response.status}`, body);
+      }
+
+      const contentType = response.headers.get('content-type');
+      let data: unknown;
+      if (contentType?.includes('application/json')) {
+        data = await response.json();
+      } else {
+        data = await response.text();
+      }
+
+      logger.info(`Success: ${JSON.stringify(data)}`);
+      return data as T;
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < retries && !(error instanceof ApiError && (error as ApiError).status >= 400 && (error as ApiError).status < 500)) {
+        const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+        logger.warn(`Request failed, retrying in ${delay}ms`, { error });
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+  throw new Error('Request failed after retries');
+}
+
+/**
+ * Get health status
+ */
+export async function getHealthStatus(): Promise<{
+  status: 'ok' | 'error';
+  uptime: number;
+  database: 'connected' | 'disconnected';
+  timestamp: string;
+}> {
+  return apiGetPublic('/health');
+}

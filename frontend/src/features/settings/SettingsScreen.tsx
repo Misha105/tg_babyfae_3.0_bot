@@ -18,6 +18,7 @@ import { handleApiError, isApiError } from '@/lib/api/errorHandler';
 import { createDateFromInput } from '@/lib/dateUtils';
 import { toast } from '@/lib/toast';
 import { logger } from '@/lib/logger';
+import { SystemStatus } from './SystemStatus';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   star: Star,
@@ -509,6 +510,9 @@ export const SettingsScreen: React.FC = () => {
         title={t('settings.clear_data_confirm_title')}
         message={t('settings.clear_data_confirm_message')}
       />
+
+      {/* System Status */}
+      <SystemStatus />
 
       {/* Footer Info */}
       <div className="text-center pt-4 pb-4">

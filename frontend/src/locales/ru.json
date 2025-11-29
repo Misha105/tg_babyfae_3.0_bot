@@ -190,6 +190,24 @@
     "notifications_feature_disabled": "Функция недоступна",
     "interval_updated": "Интервал напоминаний обновлён"
   },
+  "system_status": {
+    "title": "Статус системы",
+    "refresh": "Обновить",
+    "connection_error": "Ошибка подключения",
+    "overall_status": "Общий статус",
+    "healthy": "Работает",
+    "unhealthy": "Не работает",
+    "database": "База данных",
+    "connected": "Подключена",
+    "disconnected": "Отключена",
+    "uptime": "Время работы",
+    "last_check": "Последняя проверка",
+    "just_now": "Только что",
+    "minutes_ago": "{{count}} мин назад",
+    "hours_ago": "{{count}} ч назад",
+    "days_ago": "{{count}} д назад",
+    "unknown": "Неизвестно"
+  },
   "calendar": {
     "week_of": "Неделя {{date}}",
     "select_date": "Выберите дату",

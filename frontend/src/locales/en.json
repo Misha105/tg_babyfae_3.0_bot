@@ -152,6 +152,24 @@
     "notifications_feature_disabled": "Feature unavailable",
     "interval_updated": "Reminder interval updated"
   },
+  "system_status": {
+    "title": "System Status",
+    "refresh": "Refresh",
+    "connection_error": "Connection Error",
+    "overall_status": "Overall Status",
+    "healthy": "Healthy",
+    "unhealthy": "Unhealthy",
+    "database": "Database",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "uptime": "Uptime",
+    "last_check": "Last Check",
+    "just_now": "Just now",
+    "minutes_ago": "{{count}}m ago",
+    "hours_ago": "{{count}}h ago",
+    "days_ago": "{{count}}d ago",
+    "unknown": "Unknown"
+  },
   "calendar": {
     "week_of": "Week of {{date}}",
     "select_date": "Select Date",

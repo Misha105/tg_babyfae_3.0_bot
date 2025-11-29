@@ -36,3 +36,26 @@ export function handleApiError(err: unknown) {
 }
 
 export default handleApiError;
+
+export function getApiErrorMessage(err: unknown): string {
+  if (isApiError(err)) {
+    const apiErr = err as ApiError;
+    // Map common codes to user-friendly messages
+    if (apiErr.status === 401 || apiErr.status === 403) {
+      return 'Access denied. Please re-open the app and authorize again.';
+    }
+    if (apiErr.status === 410) {
+      return 'This feature is no longer available.';
+    }
+    // For other 4xx/5xx show server-provided message if any
+    const body = apiErr.body;
+    if (body && typeof body === 'object' && 'error' in (body as Record<string, unknown>)) {
+      const errVal = (body as Record<string, unknown>)['error'];
+      return typeof errVal === 'string' ? errVal : `Server error (${apiErr.status}).`;
+    } else {
+      return `Server error (${apiErr.status}).`;
+    }
+  } else {
+    return 'Network or unknown error. Check your connection or try again.';
+  }
+}
