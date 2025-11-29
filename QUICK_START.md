@@ -102,7 +102,7 @@ docker compose up -d --build
 docker compose ps
 
 # Health check
-curl http://localhost:3000/health
+curl http://localhost:8080/health
 # Ожидаемый ответ: {"status":"ok","database":"connected",...}
 
 # Логи

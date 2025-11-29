@@ -80,7 +80,7 @@ cp .env.example .env
 docker compose up -d --build
 
 # 3. Проверка
-curl http://localhost:3000/health
+curl http://localhost:8080/health
 ```
 
 ## Документация
