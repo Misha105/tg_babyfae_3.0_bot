@@ -6,6 +6,11 @@
 # ----------------------------------------------------------------------
 # HTTP -> HTTPS REDIRECT
 # ----------------------------------------------------------------------
+# Map for WebSocket 'Connection' header handling (declared in this file so it's included inside http { } in nginx.conf)
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
 server {
     listen 80;
     server_name 185-189-13-235.nip.io;
@@ -20,6 +25,12 @@ server {
     location / {
         return 301 https://$host$request_uri;
     }
+}
+
+# Map for WebSocket 'Connection' header handling (declared in this file so it's included inside http { } in nginx.conf)
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
 }
 
 # ----------------------------------------------------------------------
@@ -64,6 +75,40 @@ server {
     # Применяем лимиты (зоны из nginx.conf)
     limit_req zone=mylimit burst=20 nodelay;
     limit_conn addr 10;
+
+    # ------------------------------------------------------------------
+    # PROXY TO BACKEND / HEALTH / API
+    # ------------------------------------------------------------------
+    # Health check (exact match) -> proxy to backend (port 3000)
+    location = /health {
+        # If Docker Compose maps API to host:3000, use 127.0.0.1:3000. If you bind to another port or use Docker network, adjust accordingly.
+        proxy_pass http://127.0.0.1:3000/health;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_hide_header X-Frame-Options;
+        proxy_read_timeout 10s;
+    }
+
+    # API proxy: forward all /api/* requests to the backend service
+    location ^~ /api/ {
+        # If using Docker Compose with host port mapping, this commonly points to 127.0.0.1:3000.
+        # If Nginx runs inside Docker network, use the service name and port, for example: http://bot:3000/api/
+        proxy_pass http://127.0.0.1:3000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_hide_header X-Frame-Options;
+        proxy_read_timeout 120s;
+        proxy_connect_timeout 30s;
+        proxy_buffering off;
+    }
 
     # ------------------------------------------------------------------
     # PROXY TO APPLICATION (Port 8080)

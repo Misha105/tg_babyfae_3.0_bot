@@ -146,7 +146,40 @@ docker compose ps
 # babyfae-dozzle    Up (healthy)
 
 # Health check
-curl -s http://localhost:8080/health | jq
+curl -s http://localhost:3000/health | jq
+# Test backend health directly (bypassing reverse proxy):
+```bash
+curl -s http://localhost:3000/health | jq
+```
+
+# If you're using an Nginx reverse proxy (e.g., `site.conf` on the host), test the public endpoint:
+```bash
+curl -s https://your-domain.com/health | jq
+
+# Check headers to ensure the response is JSON (Content-Type: application/json):
+```bash
+curl -s -D - -o /dev/null https://your-domain.com/health | grep -i "Content-Type\|HTTP/"
+```
+```
+
+# If `/health` returns your frontend SPA (HTML) instead of the JSON from the backend:
+# It means your reverse proxy currently routes `location /` to the frontend; add a `location = /health` rule
+# before the catch-all rule so the backend receives the request. Example (in your nginx `server {}` block):
+```nginx
+  # Health check - proxy to backend (no auth)
+  location = /health {
+    # If you run Nginx on the host, proxy to host port 3000 where Docker runs the backend. If Nginx runs inside the same Docker network, use the backend service name `bot:3000` instead.
+    proxy_pass http://127.0.0.1:3000/health;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_hide_header X-Frame-Options;
+  }
+```
+
+# Tip: If you have a global rate-limiter configured and your health checks come from a single IP (e.g. load balancer),
+# make sure the IP is excluded from rate-limiting or that `/health` is not rate-limited so that LB monitor calls don't get blocked.
 ```
 
 ---
@@ -242,6 +275,40 @@ server {
     # Применяем лимиты (зоны из nginx.conf)
     limit_req zone=mylimit burst=20 nodelay;
     limit_conn addr 10;
+
+    # ------------------------------------------------------------------
+    # PROXY TO BACKEND: HEALTH & API
+    # ------------------------------------------------------------------
+    # Health check - exact match: proxy to backend in order to avoid SPA catching the route
+    location = /health {
+      proxy_pass http://127.0.0.1:3000/health;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_hide_header X-Frame-Options;
+      proxy_read_timeout 10s;
+    }
+
+    # API proxy - forward `/api/*` requests to backend
+    location ^~ /api/ {
+      # Use 127.0.0.1:3000 for host-based reverse proxies. For Nginx inside Docker network, use http://bot:3000/api/.
+      proxy_pass http://127.0.0.1:3000/api/;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header X-Forwarded-Host $host;
+      proxy_set_header X-Forwarded-Port $server_port;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $connection_upgrade;
+      proxy_hide_header X-Frame-Options;
+      proxy_read_timeout 120s;
+      proxy_connect_timeout 30s;
+      proxy_buffering off;
+    }
 
     # ------------------------------------------------------------------
     # PROXY TO APPLICATION (Port 8080)
@@ -558,7 +625,7 @@ grep TELEGRAM_BOT_TOKEN .env
 ```bash
 # Проверьте связь frontend → backend
 docker compose logs frontend | grep -i error
-curl http://localhost:8080/health
+curl http://localhost:3000/health
 ```
 
 ### «X-Frame-Options» блокирует iframe

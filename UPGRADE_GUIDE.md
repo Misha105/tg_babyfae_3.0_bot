@@ -58,7 +58,7 @@ cd ../frontend && npm run build
 
 ```bash
 # Health check
-curl http://localhost:8080/health
+curl http://localhost:3000/health
 
 # Ожидаемый ответ:
 {
