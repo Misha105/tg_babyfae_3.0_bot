@@ -1,4 +1,5 @@
 import { db } from './init';
+import { logger } from '../utils/logger';
 
 /**
  * Proper Mutex implementation to ensure transactions are atomic
@@ -111,3 +112,25 @@ export const dbAsync = {
     });
   }
 };
+
+/**
+ * Health check for database with timeout
+ * @param timeoutMs Timeout in milliseconds (default: 5000ms)
+ */
+export async function checkDatabaseHealth(timeoutMs: number = 5000): Promise<boolean> {
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('Database health check timeout')), timeoutMs);
+  });
+
+  try {
+    await Promise.race([
+      dbAsync.get('SELECT 1'),
+      timeoutPromise
+    ]);
+    return true;
+  } catch (error) {
+    // Log the error for debugging
+    logger.error('Database health check failed', { error });
+    return false;
+  }
+}

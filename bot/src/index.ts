@@ -113,6 +113,22 @@ const backupLimiter = rateLimit({
   }
 });
 
+// Health check limiter (more permissive for monitoring)
+const healthLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // Allow 10 health checks per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many health check requests.' },
+  handler: (req, res) => {
+    logger.warn('[RATE_LIMIT] Health check limit exceeded', {
+      ip: req.ip,
+      path: req.path
+    });
+    res.status(429).json({ error: 'Too many health check requests.' });
+  }
+});
+
 // Only start polling if token is present (dev mode) or explicitly enabled
 // In a scaled environment, you might want to run the bot polling in a separate worker process
 const shouldRunBot = process.env.ENABLE_BOT_POLLING !== 'false';
@@ -148,17 +164,28 @@ if (bot && shouldRunBot) {
 }
 
 // Health check endpoint (no auth required)
-app.get('/health', async (_req, res) => {
+app.get('/health', healthLimiter, async (_req, res) => {
   try {
-    const { dbAsync } = await import('./database/db-helper');
-    await dbAsync.get('SELECT 1');
+    const { checkDatabaseHealth } = await import('./database/db-helper');
+    const dbHealthy = await checkDatabaseHealth(3000); // 3 second timeout
+    
+    if (!dbHealthy) {
+      return res.status(503).json({ 
+        status: 'error', 
+        uptime: process.uptime(),
+        database: 'disconnected',
+        timestamp: new Date().toISOString()
+      });
+    }
+
     res.json({ 
       status: 'ok', 
       uptime: process.uptime(),
       database: 'connected',
       timestamp: new Date().toISOString()
     });
-  } catch {
+  } catch (error) {
+    logger.error('Health check error', { error });
     res.status(503).json({ 
       status: 'error', 
       uptime: process.uptime(),
