@@ -17,10 +17,12 @@ This is a monorepo for a Telegram Mini App (TMA) focused on infant care tracking
 - **Routing**: Single Page Application (SPA) within the Telegram Webview.
 
 ### Backend (`bot/`)
-- **Framework**: Express for HTTP endpoints, `node-telegram-bot-api` (NTBA) for Telegram interactions.
-- **Database**: **SQLite** (`sqlite3`). Use helpers in `src/database/` for queries.
-- **Handlers**: Bot logic is split into handlers (`src/handlers/`).
-- **Scheduler**: `node-cron` used for scheduled tasks (`src/scheduler/`).
+- **Framework**: Express 5 for HTTP endpoints, `node-telegram-bot-api` (NTBA) for Telegram interactions.
+- **Database**: **SQLite** (`sqlite3`) in WAL mode. Use helpers in `src/database/` for queries.
+- **Handlers**: API logic split into handlers (`src/handlers/`).
+- **Authentication**: All `/api/*` endpoints require `X-Telegram-Init-Data` header.
+- **Validation**: Input validation via `src/utils/validation.ts`.
+- **Scheduler**: Disabled (notifications feature removed).
 
 ## Critical Workflows
 
@@ -53,3 +55,6 @@ This is a monorepo for a Telegram Mini App (TMA) focused on infant care tracking
 ## Specific Gotchas
 - **Telegram SDK**: Ensure the SDK is initialized before using it. Mock the environment for local browser development (`frontend/src/mock-env.ts`).
 - **Bot Library**: We use `node-telegram-bot-api`, NOT `telegraf`. Ignore references to Telegraf in old documentation.
+- **Activity Types**: `feeding`, `water`, `medication`, `sleep`, `walk`, `custom`, `diaper`, `pump`, `bath`, `play`, `doctor`, `other`.
+- **Timer Activities**: `sleep` and `walk` use start/end timestamps with active timers (`activeSleepStart`, `activeWalkStart` in store).
+- **X-Frame-Options**: Mini App must work in Telegram iframe. Do NOT add `X-Frame-Options` header. Use `Content-Security-Policy: frame-ancestors` instead.

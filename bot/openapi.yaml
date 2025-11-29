@@ -238,9 +238,265 @@ paths:
           description: Invalid data
         '403':
           description: ID conflict with another user
+    delete:
+      summary: Delete activity
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                activityId:
+                  type: string
+                  format: uuid
+              required:
+                - activityId
+      responses:
+        '200':
+          description: Activity deleted successfully
+        '404':
+          description: Activity not found
 
-  /api/user/{id}/delete-all:
+  /api/user/{id}/activities:
+    get:
+      summary: Get activities with pagination
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: before
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Activities retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ActivityRecord'
+
+  /api/user/{id}/settings:
     post:
+      summary: Save user settings
+      description: Merges provided settings with existing settings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                settings:
+                  type: object
+      responses:
+        '200':
+          description: Settings saved successfully
+
+  /api/user/{id}/custom-activity:
+    post:
+      summary: Save custom activity definition
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                  maxLength: 50
+                icon:
+                  type: string
+                  enum: [star, heart, sun, cloud, music, book, bath, utensils]
+                color:
+                  type: string
+                  enum: [amber, emerald, sky, purple, pink, rose, indigo, teal]
+              required:
+                - id
+                - name
+                - icon
+                - color
+      responses:
+        '200':
+          description: Custom activity saved successfully
+        '400':
+          description: Invalid icon or color
+    delete:
+      summary: Delete custom activity definition
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customActivityId:
+                  type: string
+                  format: uuid
+              required:
+                - customActivityId
+      responses:
+        '200':
+          description: Custom activity deleted successfully
+
+  /api/user/{id}/growth:
+    post:
+      summary: Save growth record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrowthRecord'
+      responses:
+        '200':
+          description: Growth record saved successfully
+    delete:
+      summary: Delete growth record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recordId:
+                  type: string
+                  format: uuid
+              required:
+                - recordId
+      responses:
+        '200':
+          description: Growth record deleted successfully
+
+  /api/user/{id}/export:
+    get:
+      summary: Export all user data
+      description: Export all user data as JSON for backup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User data exported successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        '429':
+          description: Rate limit exceeded
+
+  /api/user/{id}/export-to-chat:
+    post:
+      summary: Send backup to Telegram chat
+      description: Sends JSON backup file to user's Telegram chat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                language:
+                  type: string
+                  enum: [en, ru]
+      responses:
+        '200':
+          description: Backup sent to chat
+        '429':
+          description: Rate limit exceeded (1 request per minute)
+
+  /api/user/{id}/import:
+    post:
+      summary: Import user data
+      description: Import data from JSON backup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Data imported successfully
+        '400':
+          description: Invalid import data
+        '429':
+          description: Rate limit exceeded
+
+  /api/user/{id}:
+    delete:
       summary: Delete all user data
       description: Permanently delete all data for the user (GDPR compliance)
       parameters:
@@ -255,6 +511,24 @@ paths:
         '429':
           description: Rate limit exceeded
 
+  /api/schedules/update:
+    post:
+      summary: Update schedule (DISABLED)
+      description: This endpoint is disabled. Returns 410 Gone.
+      deprecated: true
+      responses:
+        '410':
+          description: Feature disabled
+
+  /api/schedules:
+    delete:
+      summary: Delete schedule (DISABLED)
+      description: This endpoint is disabled. Returns 410 Gone.
+      deprecated: true
+      responses:
+        '410':
+          description: Feature disabled
+
 tags:
   - name: User Data
     description: User profile and data management
@@ -262,3 +536,7 @@ tags:
     description: Activity tracking
   - name: Growth
     description: Growth records
+  - name: Export/Import
+    description: Data backup and restore
+  - name: Deprecated
+    description: Disabled features

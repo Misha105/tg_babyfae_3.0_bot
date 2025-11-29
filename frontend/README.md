@@ -1,73 +1,101 @@
-# React + TypeScript + Vite
+# Babyfae Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React Telegram Mini App для отслеживания ухода за младенцем.
 
-Currently, two official plugins are available:
+## Стек
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 19** + TypeScript 5.9
+- **Vite 7** — сборка
+- **TailwindCSS 4** — стилизация
+- **Zustand 5** — state management
+- **@telegram-apps/sdk-react** — интеграция с Telegram
+- **date-fns** — работа с датами
+- **i18next** — интернационализация
 
-## React Compiler
+## Структура
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── components/         # Переиспользуемые UI компоненты
+│   ├── ui/            # Базовые компоненты (Header, Modal, etc.)
+│   └── layout/        # Layout компоненты
+├── features/          # Функциональные модули
+│   ├── dashboard/     # Главный экран
+│   ├── calendar/      # Календарь активностей
+│   ├── growth/        # Графики роста
+│   ├── settings/      # Настройки
+│   └── onboarding/    # Онбординг
+├── store/             # Zustand store
+│   └── slices/        # Слайсы состояния
+├── lib/               # Утилиты
+│   ├── api/           # API клиент и sync
+│   ├── i18n/          # Конфигурация i18n
+│   └── telegram/      # Telegram helpers
+├── hooks/             # Custom hooks
+├── locales/           # Переводы (en.json, ru.json)
+└── types/             # TypeScript типы
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Разработка
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Установка зависимостей
+npm install
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Dev сервер
+npm run dev
+# http://localhost:5173
+
+# Сборка
+npm run build
+
+# Превью production
+npm run preview
 ```
+
+## Переменные окружения
+
+```env
+# API URL (оставить пустым для относительного /api)
+VITE_API_URL=
+```
+
+## Ключевые особенности
+
+### Telegram интеграция
+
+- Автоматическая аутентификация через `initData`
+- Использование MainButton, BackButton
+- Синхронизация темы с Telegram
+
+### Offline режим
+
+- Оптимистичные обновления UI
+- Очередь offline-запросов (`lib/api/queue.ts`)
+- Автоматическая синхронизация при восстановлении сети
+
+### Таймеры
+
+- `activeSleepStart` — активный сон
+- `activeWalkStart` — активная прогулка
+- Сохраняются в settings и восстанавливаются при sync
+
+## Локализация
+
+Поддерживаемые языки:
+- Русский (`ru.json`)
+- English (`en.json`)
+
+Добавление нового ключа:
+1. Добавьте в оба файла `locales/`
+2. Используйте: `const { t } = useTranslation(); t('key')`
+
+## Тестирование в браузере
+
+Для локальной разработки без Telegram используется `mock-env.ts`:
+
+```typescript
+// Мокает window.Telegram.WebApp
+```
+
+**Важно**: В production Mini App работает только внутри Telegram.

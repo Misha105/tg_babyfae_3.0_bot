@@ -1,82 +1,133 @@
 # Babyfae 3.0
 
-Telegram Mini App for infant care tracking.
+Telegram Mini App для отслеживания ухода за младенцем.
 
-## Project Structure
+## Стек технологий
 
-- `frontend/`: React + Vite + Tailwind CSS (The Mini App)
-- `bot/`: Node.js + Express + node-telegram-bot-api (The Backend & Bot)
+| Компонент | Технологии |
+|-----------|------------|
+| **Frontend** | React 19, Vite 7, TailwindCSS 4, Zustand 5, TypeScript 5.9 |
+| **Backend** | Node.js 22, Express 5, SQLite 3 (WAL mode), TypeScript |
+| **Telegram** | node-telegram-bot-api, @telegram-apps/sdk-react |
+| **Деплой** | Docker, Docker Compose, Nginx |
 
-## Getting Started
+## Возможности
 
-### Prerequisites
+- 📝 Отслеживание кормлений, сна, прогулок, лекарств
+- 📊 График роста и веса
+- 🎨 Кастомные активности с иконками
+- 🌍 Мультиязычность (Русский, English)
+- 📱 Оффлайн-режим с синхронизацией
+- 🔒 Аутентификация через Telegram
 
-- Node.js 20+
-- Telegram Bot Token (from @BotFather)
+## Структура проекта
 
-### Installation
-
-1. Install dependencies for all packages:
-   ```bash
-   npm run install:all
-   ```
-
-2. Configure the Bot:
-   - Copy `bot/.env.example` to `bot/.env`
-   - Add your `TELEGRAM_BOT_TOKEN`
-
-### Running Locally
-
-1. Start both frontend and backend:
-   ```bash
-   npm run dev
-   ```
-
-2. Expose your local frontend to the internet (required for Telegram Web App):
-   - Use **Cloudflare Tunnel** (`cloudflared`):
-     ```bash
-     # If you have cloudflared installed:
-     cloudflared tunnel --url http://localhost:5173
-     ```
-     *Alternatively, you can use `npm run tunnel` if you have cloudflared in your PATH.*
-   
-   - Copy the HTTPS URL (e.g., `https://xxxx-xxxx.trycloudflare.com`)
-
-3. Configure the Bot in Telegram:
-   - Open @BotFather
-   - Select your bot
-   - Go to **Bot Settings** > **Menu Button** > **Configure Menu Button**
-   - Send the HTTPS URL from step 2
-
-### Features
-
-- **Data Persistence**: Uses Telegram CloudStorage with a local fallback for development.
-- **Notifications**: Scheduled via the Bot backend.
-- **Offline Support**: Optimistic UI updates.
-
-## Development
-
-- **Frontend**: Runs on port 5173
-- **Backend**: Runs on port 3000
-
-To test notifications locally, ensure the backend is running and configured with a valid Bot Token.
-
-## 🔍 Monitoring
-
-The project includes **Dozzle** for lightweight container log monitoring (~10MB RAM).
-
-Dozzle starts automatically with `docker compose up -d` and is accessible at:
-- **Local**: `http://localhost:9999`
-- **Production**: `https://your-domain.com/monitor/`
-
-### Setup on VPS
-
-```bash
-# Generate password
-docker run -it --rm amir20/dozzle generate admin --password "YourPassword"
-
-# Copy output to monitoring/dozzle-data/users.yml
-nano monitoring/dozzle-data/users.yml
+```
+├── frontend/          # React Mini App
+│   ├── src/
+│   │   ├── components/    # UI компоненты
+│   │   ├── features/      # Функциональные модули
+│   │   ├── store/         # Zustand хранилище
+│   │   ├── lib/           # Утилиты, API клиент
+│   │   └── locales/       # i18n переводы
+│   └── Dockerfile
+├── bot/               # Express API + Telegram Bot
+│   ├── src/
+│   │   ├── handlers/      # API роуты
+│   │   ├── database/      # SQLite helpers
+│   │   ├── middleware/    # Auth, logging
+│   │   └── utils/         # Валидация, утилиты
+│   └── Dockerfile
+├── docker-compose.yml
+└── .env.example
 ```
 
-See [monitoring/README.md](monitoring/README.md) for Nginx configuration and security options.
+## Быстрый старт
+
+### Требования
+
+- Node.js 22+
+- Telegram Bot Token (получить у [@BotFather](https://t.me/BotFather))
+
+### Локальная разработка
+
+```bash
+# 1. Установка зависимостей
+npm run install:all
+
+# 2. Настройка окружения
+cp bot/.env.example bot/.env
+# Добавьте TELEGRAM_BOT_TOKEN в bot/.env
+
+# 3. Запуск dev-серверов
+npm run dev
+# Frontend: http://localhost:5173
+# Backend: http://localhost:3000
+
+# 4. Туннель для Telegram (в отдельном терминале)
+npm run tunnel
+# Скопируйте HTTPS URL и настройте Menu Button в @BotFather
+```
+
+### Production (Docker)
+
+```bash
+# 1. Настройка
+cp .env.example .env
+# Заполните TELEGRAM_BOT_TOKEN и WEBAPP_URL
+
+# 2. Запуск
+docker compose up -d --build
+
+# 3. Проверка
+curl http://localhost:8080/health
+```
+
+## Документация
+
+| Документ | Описание |
+|----------|----------|
+| [QUICK_START.md](./QUICK_START.md) | Быстрый старт за 5 минут |
+| [DEPLOY.md](./DEPLOY.md) | Полная инструкция по развертыванию на VPS |
+| [UPGRADE_GUIDE.md](./UPGRADE_GUIDE.md) | Обновление с предыдущих версий |
+| [monitoring/README.md](./monitoring/README.md) | Настройка мониторинга (Dozzle) |
+
+## Мониторинг
+
+В проект интегрирован [Dozzle](https://dozzle.dev/) — веб-интерфейс для просмотра логов Docker (~15 MB RAM).
+
+```bash
+# Генерация пароля
+docker run -it --rm amir20/dozzle generate admin --password "YourPassword"
+
+# Доступ после настройки Nginx
+https://your-domain.com/monitor/
+```
+
+## API
+
+Все эндпоинты (кроме `/health`) требуют заголовок `X-Telegram-Init-Data` с данными аутентификации Telegram WebApp.
+
+| Метод | Эндпоинт | Описание |
+|-------|----------|----------|
+| GET | `/health` | Проверка состояния (без авторизации) |
+| GET | `/api/user/:id` | Все данные пользователя |
+| GET | `/api/user/:id/activities` | Список активностей (с пагинацией) |
+| POST | `/api/user/:id/profile` | Обновить профиль ребенка |
+| POST | `/api/user/:id/settings` | Обновить настройки |
+| POST | `/api/user/:id/activity` | Сохранить активность |
+| DELETE | `/api/user/:id/activity` | Удалить активность |
+| POST | `/api/user/:id/custom-activity` | Сохранить кастомную активность |
+| DELETE | `/api/user/:id/custom-activity` | Удалить кастомную активность |
+| POST | `/api/user/:id/growth` | Сохранить запись роста |
+| DELETE | `/api/user/:id/growth` | Удалить запись роста |
+| GET | `/api/user/:id/export` | Экспорт данных (JSON) |
+| POST | `/api/user/:id/export-to-chat` | Отправить бэкап в чат |
+| POST | `/api/user/:id/import` | Импорт данных |
+| DELETE | `/api/user/:id` | Удалить все данные пользователя |
+
+Полная спецификация: [bot/openapi.yaml](./bot/openapi.yaml)
+
+## Лицензия
+
+MIT
