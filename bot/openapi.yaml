@@ -80,9 +80,14 @@ components:
           maximum: 10000
         unit:
           type: string
+          enum: [ml, mg, gr, drops, pieces]
         medicationName:
           type: string
           maxLength: 50
+        subType:
+          type: string
+          maxLength: 50
+          description: Custom activity name for type=custom
 
     GrowthRecord:
       type: object
