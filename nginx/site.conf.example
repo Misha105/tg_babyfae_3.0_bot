@@ -92,7 +92,7 @@ server {
     # MONITORING (Dozzle)
     # ------------------------------------------------------------------
     location /monitor/ {
-        proxy_pass http://127.0.0.1:9999/;
+        proxy_pass http://127.0.0.1:9999/monitor/;
         proxy_http_version 1.1;
         
         proxy_set_header Host $host;
