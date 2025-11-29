@@ -76,11 +76,139 @@ sudo usermod -aG docker $USER
 exit
 # Затем подключитесь снова
 ```
+### Troubleshooting: "zero size shared memory zone \"mylimit\""
+
+Если при проверке конфигурации Nginx вы видите ошибку:
+
+```
+2025/11/29 ... [emerg]: zero size shared memory zone "mylimit"
+```
+
+Это обычно означает, что в конфигурации объявлена глобальная зона с неверным размером или объявлена несколько раз (дублирование), либо объявлена в недопустимом контексте (не в блоке `http {}`).
+
+Что проверять и как исправлять (короткий план):
+
+1) Найдите все упоминания директив `limit_req_zone` и `limit_conn_zone` по конфигам Nginx:
+
+```bash
+sudo grep -R --line-number "limit_req_zone" /etc/nginx || true
+sudo grep -R --line-number "limit_conn_zone" /etc/nginx || true
+sudo grep -R --line-number "mylimit" /etc/nginx || true
+```
+
+2) ПРИМЕРЫ: incorrect vs correct
+
+- Неправильно (опасно или приведёт к ошибке):
+
+```nginx
+# Bad: missing size or zero size
+limit_req_zone $binary_remote_addr zone=mylimit rate=1r/s;   # missing :<size>
+limit_req_zone $binary_remote_addr zone=mylimit:0m rate=1r/s; # 0m => invalid
+
+# Bad: declared in server block or included file (should be in http block)
+server {
+  limit_req_zone $binary_remote_addr zone=mylimit:10m rate=1r/s;
+}
+```
+
+<!--- Ensure the directory exists and is writable by the owner nginx will run as (or by root if you allow certbot to write) -->
+```bash
+sudo mkdir -p /var/www/letsencrypt
+# Make directory writable for certbot and Nginx. On Debian/Ubuntu Nginx commonly runs as www-data:
+sudo chown -R $USER:$USER /var/www/letsencrypt  # (or: sudo chown -R www-data:www-data /var/www/letsencrypt)
+``` 
+```
+
+- Правильно (рекомендуемое место — внутри `http {}` блока в `/etc/nginx/nginx.conf`):
+
+```nginx
+http {
+  limit_req_zone $binary_remote_addr zone=mylimit:10m rate=1r/s;
+  limit_conn_zone $binary_remote_addr zone=addr:10m;
+  include /etc/nginx/sites-enabled/*;
+}
+
+# Используем в server:
+server {
+  listen 443 ssl;
+  server_name your-domain.com;
+
+  # Use the existing zone, do not re-declare it here!
+  limit_req zone=mylimit burst=5 nodelay;
+  limit_conn addr 10;
+  ...
+}
+```
+
+3) Если ошибка остаётся, выводите скомпилированную конфигурацию и ищите подозрительные места (дубликаты или объявление в `server` блоке):
+
+```bash
+sudo nginx -T | sed -n '1,400p' | grep -n "limit_req_zone\|limit_conn_zone\|mylimit" -C 3
+```
+
+4) Если нашли файл с ошибочным объявлением `zone=mylimit` без размера или `:0m`, исправьте его, заменив на `zone=mylimit:10m` (или другой разумный размер `:1m`/`:5m`/`:50m` в зависимости от количества клиентов):
+
+```bash
+# Example: edit the file with sudo nano /etc/nginx/conf.d/your-file.conf
+sudo nano /etc/nginx/conf.d/your-site.conf
+
+# Correct the declaration to include a non-zero size:
+limit_req_zone $binary_remote_addr zone=mylimit:10m rate=1r/s;
+```
+
+5) Перезагрузите и проверьте конфигурацию Nginx:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+6) Если `nginx -t` всё ещё выдаёт ошибку, ищите дубли в включаемых файлах (например, конфигах в `/etc/nginx/sites-enabled/`, `/etc/nginx/conf.d/`, либо автоматических конфигурациях от dс/terraform/ansible). Если конфигурация генерируется автоматически/с помощью CD/CM, обновите шаблон.
+
+7) Как только `nginx -t` возвращает `ok`, повторно запустите certbot:
+
+```bash
+sudo certbot --nginx -d 185-189-13-235.nip.io
+```
+
+8) Быстрая исправляющая команда (с резервной копией):
+
+Если вы нашли конкретный файл и хотите исправить объявление зоны автоматически, сделайте резервную копию и отредактируйте с помощью `sed` (пример):
+
+```bash
+sudo cp /etc/nginx/conf.d/your-site.conf /etc/nginx/conf.d/your-site.conf.bak
+sudo sed -i "s/zone=mylimit\b/zone=mylimit:10m/g" /etc/nginx/conf.d/your-site.conf
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Внимание: проверьте изменения в резервной копии и вывод `nginx -t` перед перезагрузкой — не применяйте изменения без проверки.
+
+Доп. рекомендации: 
+- Зона `:10m` — разумный дефолт для большинства мелких инсталляций. Увеличивайте размер, если ожидаете много уникальных IP-адресов.
+- Никогда не объявляйте `limit_*_zone` в `server`/`location` блоках. Они должны находиться в `http {}`.
+- Если на вашем VPS у нескольких конфигураций Nginx или нескольких контейнеров, убедитесь, что правите тот конфиг Nginx, который реально запущен (иногда Docker-контейнер использует свою конфигурацию).
+
+Пример быстрых команд для диагностики и автоматического поиска дубликатов:
+
+```bash
+# Search for all files that mention the zone name
+sudo grep -R --line-number "mylimit" /etc/nginx || true
+
+# Display config where zones are declared
+sudo nginx -T | grep -n "limit_req_zone\|limit_conn_zone" -C 2
+
+# If you find a file with `zone=mylimit` without size or 0m,
+# correct it to use a non-zero size e.g. :10m
+
+sudo nginx -t && sudo systemctl reload nginx || true
+```
+
 
 Проверка:
 
 ```bash
 docker --version
+"ssl_stapling" ignored, no OCSP responder URL in the certificate "/etc/letsencrypt/live/your-domain/fullchain.pem"
 # Docker version 27.x.x
 
 docker compose version
@@ -192,6 +320,8 @@ sudo nano /etc/nginx/sites-available/babyfae
 
 ```nginx
 # Map to handle WebSocket connection header behavior
+# NOTE: `map` must be declared in the `http {}` context. This example is intended to be included from a file
+# that is loaded inside the `http {}` block (default Debian/Ubuntu `nginx.conf` includes sites-enabled files there).
 map $http_upgrade $connection_upgrade {
   default upgrade;
   ''      close;
@@ -211,15 +341,22 @@ server {
   location / {
     return 301 https://$host$request_uri;
   }
-}
+  }
 
 server {
-  listen 443 ssl;  # For HTTP/2, enable according to your Nginx version syntax (some versions will accept `http2` in listen)
+  # Listen for HTTPS. Use `listen 443 ssl;` to avoid deprecation warnings on some installed Nginx versions.
+  # If your Nginx supports `http2` without issuing a deprecated warning, you may use:
+  #   listen 443 ssl http2;
+  # Otherwise, you can use `listen 443 ssl;` and enable `http2` where supported by your version.
+  listen 443 ssl;
   server_name your-domain.com;
 
   # Letsencrypt certs (certbot will replace these paths)
   ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
   ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+  # If you enable ssl_stapling, set ssl_trusted_certificate to the chain file; certbot does this automatically
+  # (it will set: ssl_trusted_certificate /etc/letsencrypt/live/your-domain.com/chain.pem;)
+  # ssl_trusted_certificate /etc/letsencrypt/live/your-domain.com/chain.pem;
   ssl_protocols TLSv1.3 TLSv1.2;
   ssl_prefer_server_ciphers off;
   ssl_session_timeout 1d;
@@ -244,16 +381,20 @@ server {
 
   # Rate limiting - adjust req/sec as needed for your environment
   # 1 request per second with a burst of 5
-  # IMPORTANT: Declare limit_req_zone & limit_conn_zone in the `http {}` context
+  # IMPORTANT: Declare `limit_req_zone` & `limit_conn_zone` ONLY in the `http {}` context.
   # (e.g. in `/etc/nginx/nginx.conf` inside `http { ... }`). Example (in nginx.conf):
   #
+  # Example `http {}` block where you SHOULD declare the global rate-limiting zones (put this in /etc/nginx/nginx.conf):
+  #
   # http {
+  #   # Global rate-limiting zones must be declared here (not inside server blocks):
   #   limit_req_zone $binary_remote_addr zone=mylimit:10m rate=1r/s;
   #   limit_conn_zone $binary_remote_addr zone=addr:10m;
+  #   include /etc/nginx/conf.d/*.conf;
   #   include /etc/nginx/sites-enabled/*;
   # }
   #
-  # Use the zones in this server block like so:
+  # Use the zones in this server block like so (do not re-declare them here):
   limit_req zone=mylimit burst=5 nodelay;
   limit_conn addr 10;
 

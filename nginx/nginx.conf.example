@@ -1,0 +1,159 @@
+# nginx/nginx.conf.example
+# Example Nginx configuration for BabyFae (copy and adapt for your server)
+# * This file is an example only. Always verify with `sudo nginx -t` and test in a non-production environment first.
+# * Place this file as `/etc/nginx/nginx.conf` or include parts of it, and adapt paths to your OS/distribution.
+
+## Adjust to your distribution: Debian/Ubuntu uses `www-data`, RHEL/CentOS commonly uses `nginx`.
+user  www-data;
+worker_processes  auto;
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+# Events
+events {
+  worker_connections  1024;
+}
+
+# HTTP context where you must declare global rate-limiting zones, maps, and include site configs
+http {
+  sendfile on;
+  tcp_nopush on;
+  tcp_nodelay on;
+  keepalive_timeout 65;
+  types_hash_max_size 2048;
+  include /etc/nginx/mime.types;
+  default_type application/octet-stream;
+
+  # Gzip recommendations (tweak accordingly)
+  gzip on;
+  gzip_disable "msie6";
+  gzip_vary on;
+  gzip_proxied any;
+  gzip_comp_level 5;
+  gzip_buffers 16 8k;
+  gzip_http_version 1.1;
+  gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+  # Global rate limiting zones - MUST be declared here ONLY
+  # Choose a sensible memory size based on expected number of unique client IPs
+  limit_req_zone $binary_remote_addr zone=mylimit:10m rate=1r/s;
+  limit_conn_zone $binary_remote_addr zone=addr:10m;
+
+  # Map for websocket/upgrade handling - declare maps in http context
+  map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+  }
+
+  # Include additional site confs
+  include /etc/nginx/conf.d/*.conf;
+  include /etc/nginx/sites-enabled/*;
+
+  # --- SITE: babyfae (example) ---
+  server {
+    listen 80;
+    server_name example.com;  # replace with your domain
+
+    # ACME challenge directory for certbot
+    location ^~ /.well-known/acme-challenge/ {
+      default_type "text/plain";
+      root /var/www/letsencrypt;
+    }
+
+    # redirect all other to HTTPS
+    location / {
+      return 301 https://$host$request_uri;
+    }
+  }
+
+  server {
+    # Use 'listen 443 ssl;' for broad compatibility. Use http2 if your Nginx supports it without deprecation warnings.
+    listen 443 ssl;
+    server_name example.com; # replace with your domain
+
+    # Certificate files managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+    # Recommended by Certbot/Let's Encrypt; certbot normally adds this file automatically when using --nginx
+    # include /etc/letsencrypt/options-ssl-nginx.conf;
+    # If you enable ssl_stapling, set ssl_trusted_certificate to the chain file
+    # ssl_trusted_certificate /etc/letsencrypt/live/example.com/chain.pem;
+    ssl_protocols TLSv1.3 TLSv1.2;
+    ssl_prefer_server_ciphers off;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_tickets off;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    resolver 1.1.1.1 8.8.8.8 valid=300s;
+    resolver_timeout 5s;
+
+    # Security headers
+    server_tokens off;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Allow embedding specifically in Telegram domains (CSP instead of X-Frame-Options)
+    add_header Content-Security-Policy "frame-ancestors 'self' https://web.telegram.org https://telegram.org https://*.telegram.org" always;
+
+    # Limit upload size (imports/backups)
+    client_max_body_size 50M;
+
+    # Do not re-declare global zones here, only use them
+    limit_req zone=mylimit burst=5 nodelay;
+    limit_conn addr 10;
+
+    # Proxy the SPA frontend
+    location / {
+      proxy_pass http://127.0.0.1:8080;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header X-Forwarded-Host $host;
+      proxy_set_header X-Forwarded-Port $server_port;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $connection_upgrade;
+      proxy_hide_header X-Frame-Options;  # ensure backend/container doesn't set this header
+      proxy_read_timeout 120s;
+      proxy_connect_timeout 30s;
+      proxy_buffering off;
+    }
+
+    # Protect common sensitive paths
+    location ~* /(\.|\.env|\.git) {
+      deny all;
+      access_log off;
+      log_not_found off;
+    }
+
+    # Monitoring UI (Dozzle)
+    location /monitor/ {
+      proxy_pass http://127.0.0.1:9999/monitor/;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $connection_upgrade;
+      proxy_hide_header X-Frame-Options;
+      # Optional Basic Auth for monitoring
+      # auth_basic "Dozzle Admin";
+      # auth_basic_user_file /etc/nginx/.htpasswd;
+    }
+
+  }
+
+}
+
+# End of example
+# Notes:
+# - This example puts global zones in `http {}` and uses them inside `server {}` blocks; DO NOT re-declare the zones inside server blocks.
+# - Replace `example.com` with your actual domain and update LetsEncrypt paths if you store them differently.
+# - Ensure the ACME challenge directory exists: `sudo mkdir -p /var/www/letsencrypt && sudo chown -R $USER:$USER /var/www/letsencrypt`.
+# - Validate: `sudo nginx -t`; then reload: `sudo systemctl reload nginx`.
+# - Keep `proxy_hide_header X-Frame-Options` if your backend/container adds it.
+# - This file is intended to simplify initial deployments. Tailor to your infra (e.g., add rate-limiting rules, WAF, or upstream load balancer config as needed).
