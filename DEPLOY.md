@@ -214,7 +214,7 @@ server {
 }
 
 server {
-  listen 443 ssl http2;
+  listen 443 ssl;  # For HTTP/2, enable according to your Nginx version syntax (some versions will accept `http2` in listen)
   server_name your-domain.com;
 
   # Letsencrypt certs (certbot will replace these paths)
@@ -244,10 +244,17 @@ server {
 
   # Rate limiting - adjust req/sec as needed for your environment
   # 1 request per second with a burst of 5
-  limit_req_zone $binary_remote_addr zone=mylimit:10m rate=1r/s;
+  # IMPORTANT: Declare limit_req_zone & limit_conn_zone in the `http {}` context
+  # (e.g. in `/etc/nginx/nginx.conf` inside `http { ... }`). Example (in nginx.conf):
+  #
+  # http {
+  #   limit_req_zone $binary_remote_addr zone=mylimit:10m rate=1r/s;
+  #   limit_conn_zone $binary_remote_addr zone=addr:10m;
+  #   include /etc/nginx/sites-enabled/*;
+  # }
+  #
+  # Use the zones in this server block like so:
   limit_req zone=mylimit burst=5 nodelay;
-  # Optionally limit total concurrent connections per IP
-  limit_conn_zone $binary_remote_addr zone=addr:10m;
   limit_conn addr 10;
 
   # Proxy frontend (SPA)
@@ -525,6 +532,20 @@ curl -I https://your-domain.com
 
 # Или проверить только интересующие заголовки
 curl -s -D - -o /dev/null https://your-domain.com | grep -i "^Content-Security-Policy\|^X-Frame-Options"
+
+### Nginx HTTP/2 deprecation warning
+
+You may encounter a warning during `nginx -t` like:
+
+```
+the "listen ... http2" directive is deprecated, use the "http2" directive instead
+```
+
+This is a non-fatal warning and will not prevent Nginx from starting. To avoid the warning you can either:
+- Use `listen 443 ssl;` (recommended for compatibility) and enable HTTP/2 only if your installed Nginx/docs specify the syntax to do so.
+- Change to `listen 443 ssl;` for compatibility (this will not enable HTTP/2), or
+- Consult your Nginx version's documentation and use the recommended `http2` syntax for your version.
+
 ```
 
 Если `X-Frame-Options` присутствует — ищите его в Nginx, CDN (Cloudflare, Fastly), LB, or WAF and disable it there.

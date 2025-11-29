@@ -68,7 +68,7 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
+    listen 443 ssl; # enable HTTP/2 if your nginx version supports 'http2' syntax
     server_name your-domain.com;
     
     # SSL certificates (managed by Certbot)
