@@ -6,34 +6,89 @@ export const TelegramViewportSync = () => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    // Wait for SDK to be initialized before accessing viewport
-    if (!isSdkInitialized()) {
-      // Re-check after a short delay
-      const checkInterval = setInterval(() => {
-        if (isSdkInitialized()) {
-          clearInterval(checkInterval);
-          checkViewport();
-        }
-      }, 50);
-      return () => clearInterval(checkInterval);
-    } else {
-      checkViewport();
-    }
+    let cancelled = false;
     
-    function checkViewport() {
+    // Track timers for cleanup
+    const intervals = new Set<ReturnType<typeof setInterval>>();
+    const timeouts = new Set<ReturnType<typeof setTimeout>>();
+    
+    // Helper to track intervals for cleanup
+    const trackInterval = (id: ReturnType<typeof setInterval>) => {
+      intervals.add(id);
+      return id;
+    };
+    
+    const trackTimeout = (id: ReturnType<typeof setTimeout>) => {
+      timeouts.add(id);
+      return id;
+    };
+    
+    const clearTrackedInterval = (id: ReturnType<typeof setInterval>) => {
+      clearInterval(id);
+      intervals.delete(id);
+    };
+    
+    // Wait for viewport to be mounted (by init.ts), don't try to mount it ourselves
+    const waitForViewport = () => {
+      if (cancelled) return;
+      
       try {
         if (viewport && viewport.isMounted()) {
           setIsMounted(true);
-        } else if (viewport && !viewport.isMounted()) {
-          // SDK should have mounted it, but try again as fallback
-          viewport.mount().then(() => {
-            setIsMounted(true);
-          }).catch(e => console.warn('Viewport mount failed in sync component', e));
+          return;
         }
+        
+        // Viewport not mounted yet - wait and check again
+        // init.ts should be mounting it, so we just wait
+        const waitInterval = trackInterval(setInterval(() => {
+          if (cancelled) {
+            clearTrackedInterval(waitInterval);
+            return;
+          }
+          try {
+            if (viewport && viewport.isMounted()) {
+              clearTrackedInterval(waitInterval);
+              setIsMounted(true);
+            }
+          } catch (e) {
+            console.warn('Viewport check failed', e);
+          }
+        }, 100));
+        
+        // Timeout after 3 seconds - give up waiting
+        trackTimeout(setTimeout(() => {
+          if (!cancelled) {
+            clearTrackedInterval(waitInterval);
+          }
+        }, 3000));
+        
       } catch (e) {
         console.warn('Viewport access failed', e);
       }
+    };
+    
+    // Wait for SDK to be initialized before accessing viewport
+    if (!isSdkInitialized()) {
+      // Re-check after a short delay
+      const checkInterval = trackInterval(setInterval(() => {
+        if (cancelled) return;
+        if (isSdkInitialized()) {
+          clearTrackedInterval(checkInterval);
+          waitForViewport();
+        }
+      }, 50));
+    } else {
+      waitForViewport();
     }
+    
+    // Cleanup all tracked timers
+    return () => {
+      cancelled = true;
+      intervals.forEach(id => clearInterval(id));
+      intervals.clear();
+      timeouts.forEach(id => clearTimeout(id));
+      timeouts.clear();
+    };
   }, []);
 
   useEffect(() => {

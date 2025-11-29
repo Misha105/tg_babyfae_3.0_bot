@@ -90,7 +90,7 @@ async function doInit(): Promise<void> {
     // Mount components sequentially to avoid race conditions
     // Each mount is wrapped in try-catch to continue even if one fails
     
-    // Back button
+    // Back button (sync mount, no isMounting check needed)
     try { 
       if (backButton && !backButton.isMounted()) {
         backButton.mount(); 
@@ -99,7 +99,7 @@ async function doInit(): Promise<void> {
       console.warn('backButton mount failed', e); 
     }
     
-    // Main button
+    // Main button (sync mount, no isMounting check needed)
     try { 
       if (mainButton && !mainButton.isMounted()) {
         mainButton.mount(); 
@@ -110,7 +110,7 @@ async function doInit(): Promise<void> {
     
     // Theme params - mount and wait for it
     try { 
-      if (themeParams && !themeParams.isMounted()) {
+      if (themeParams && !themeParams.isMounted() && !themeParams.isMounting?.()) {
         await themeParams.mount(); 
       }
     } catch (e) { 
@@ -119,7 +119,7 @@ async function doInit(): Promise<void> {
     
     // Viewport - mount and wait for it
     try {
-      if (viewport && !viewport.isMounted()) {
+      if (viewport && !viewport.isMounted() && !viewport.isMounting?.()) {
         await viewport.mount();
       }
     } catch (e) { 
@@ -129,7 +129,7 @@ async function doInit(): Promise<void> {
     // Mini App - mount and configure
     try {
       if (miniApp) {
-        if (!miniApp.isMounted()) {
+        if (!miniApp.isMounted() && !miniApp.isMounting?.()) {
           await miniApp.mount();
         }
         // Match slate-900 (#0f172a) - only call after mount is complete
