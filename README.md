@@ -126,6 +126,15 @@ https://your-domain.com/monitor/
 | POST | `/api/user/:id/import` | Импорт данных |
 | DELETE | `/api/user/:id` | Удалить все данные пользователя |
 
+## Dev notes: logging & API client
+
+- The frontend uses a centralized `logger` API in `frontend/src/lib/logger.ts` — prefer `logger.info`/`logger.warn`/`logger.error`/`logger.debug` or `logger.http` for HTTP events. Do not use `console.*` directly in the frontend source; eslint will enforce this.
+- All frontend API calls should use `frontend/src/lib/api/client.ts` which:
+	- injects `X-Telegram-Init-Data` header automatically,
+	- masks sensitive values in logs,
+	- supports per-request `timeoutMs` (defaults to 30 seconds), and
+	- normalizes error responses to `ApiError` with status and body.
+
 Полная спецификация: [bot/openapi.yaml](./bot/openapi.yaml)
 
 ## Лицензия

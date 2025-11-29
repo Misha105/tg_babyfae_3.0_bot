@@ -2,12 +2,13 @@ import type { StateCreator } from 'zustand';
 import type { ActivityRecord } from '@/types';
 import { saveActivity, deleteActivity, fetchActivities } from '@/lib/api/sync';
 import { getCurrentUserId } from '@/store/userContext';
+import { logger } from '@/lib/logger';
 import { addToQueue } from '@/lib/api/queue';
 
 const getUserId = (): number => {
   const userId = getCurrentUserId();
   if (!userId) {
-    console.error('[ActivitySlice] No user ID available');
+    logger.error('[ActivitySlice] No user ID available');
     throw new Error('User not authenticated');
   }
   return userId;
@@ -88,7 +89,7 @@ export const createActivitySlice: StateCreator<ActivitySlice> = (set, get) => ({
         set({ isLoadingMore: false, hasMoreHistory: false });
       }
     } catch (e) {
-      console.error('Failed to load more activities', e);
+      logger.error('Failed to load more activities', { error: e });
       set({ isLoadingMore: false });
     }
   },

@@ -1,13 +1,14 @@
 import { mockCloudStorage } from './lib/storage/mock-cloud-storage';
+import { logger } from '@/lib/logger';
 
 // Prevent unused variable warning
-console.log('Mock Storage initialized:', mockCloudStorage);
+logger.debug('Mock Storage initialized', { mockCloudStorage });
 
 // Mock Telegram WebApp environment for development
 // Only mock if we are strictly in DEV mode AND window.Telegram is completely missing
 // This prevents overwriting the real Telegram object if it exists but WebApp is not yet fully populated
 if (import.meta.env.DEV && typeof window.Telegram === 'undefined') {
-  console.log('Initializing Mock Telegram Environment');
+  logger.debug('Initializing Mock Telegram Environment');
   
   window.Telegram = {
     WebApp: {

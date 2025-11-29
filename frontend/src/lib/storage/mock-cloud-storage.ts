@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 export class MockCloudStorage {
   async getItem(key: string): Promise<string | null> {
     // Simulate network delay
@@ -8,13 +10,13 @@ export class MockCloudStorage {
   async setItem(key: string, value: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 100));
     localStorage.setItem(key, value);
-    console.log(`[MockCloudStorage] Set ${key}:`, value.substring(0, 50) + '...');
+    logger.debug(`[MockCloudStorage] Set ${key}`, { preview: value.substring(0, 50) + '...' });
   }
 
   async removeItem(key: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 100));
     localStorage.removeItem(key);
-    console.log(`[MockCloudStorage] Removed ${key}`);
+    logger.debug(`[MockCloudStorage] Removed ${key}`);
   }
 
   async getKeys(): Promise<string[]> {

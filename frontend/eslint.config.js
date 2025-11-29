@@ -19,5 +19,16 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Disallow console usage in source; logging should go through `src/lib/logger.ts`
+      'no-console': 'error',
+    },
+  },
+  {
+    files: ['src/lib/logger.ts'],
+    rules: {
+      // Allow logger implementation to use console for environment-aware logging
+      'no-console': 'off',
+    },
   },
 ])

@@ -3,6 +3,7 @@
  */
 
 import { addToQueue } from './queue';
+import { logger } from '@/lib/logger';
 
 type QueueAction = 'update' | 'delete' | 'saveActivity' | 'deleteActivity' | 'saveGrowth' | 'deleteGrowth' | 'saveProfile' | 'saveSettings' | 'saveCustomActivity' | 'deleteCustomActivity';
 
@@ -22,7 +23,7 @@ export async function withOfflineQueue<T>(
   try {
     return await apiCall();
   } catch (error) {
-    console.error('API call failed, adding to offline queue:', error);
+    logger.error('API call failed, adding to offline queue', { error });
     addToQueue(queueConfig.action, queueConfig.payload);
   }
 }

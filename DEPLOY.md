@@ -185,34 +185,123 @@ sudo apt install -y nginx certbot python3-certbot-nginx
 sudo nano /etc/nginx/sites-available/babyfae
 ```
 
-Содержимое:
+В этом примере Nginx действует как публичный reverse-proxy (TLS termination) и проксирует запросы
+к внутреннему приложению на 127.0.0.1:8080 (frontend) и 127.0.0.1:9999 (Dozzle).
+
+Содержимое (с дополнительными мерами безопасности и настройками для Certbot):
 
 ```nginx
-server {
-    listen 80;
-    server_name your-domain.com;  # Замените на ваш домен
-
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Мониторинг (Dozzle)
-    location /monitor/ {
-        proxy_pass http://127.0.0.1:9999/monitor/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
+# Map to handle WebSocket connection header behavior
+map $http_upgrade $connection_upgrade {
+  default upgrade;
+  ''      close;
 }
+
+server {
+  listen 80;
+  server_name your-domain.com;  # Замените на ваш домен
+
+  # Allow ACME challenge for Certbot
+  location ^~ /.well-known/acme-challenge/ {
+    default_type "text/plain";
+    root /var/www/letsencrypt;
+  }
+
+  # Redirect all other requests to HTTPS
+  location / {
+    return 301 https://$host$request_uri;
+  }
+}
+
+server {
+  listen 443 ssl http2;
+  server_name your-domain.com;
+
+  # Letsencrypt certs (certbot will replace these paths)
+  ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+  ssl_protocols TLSv1.3 TLSv1.2;
+  ssl_prefer_server_ciphers off;
+  ssl_session_timeout 1d;
+  ssl_session_cache shared:SSL:10m;
+  ssl_session_tickets off;
+  # Optionally add dhparam for increased security
+  # ssl_dhparam /etc/ssl/certs/dhparam.pem;
+  ssl_stapling on;
+  ssl_stapling_verify on;
+  resolver 1.1.1.1 8.8.8.8 valid=300s;
+  resolver_timeout 5s;
+
+  # Security hardening
+  server_tokens off;
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  # Allow embedding only in Telegram domains (no X-Frame-Options: keep CSP instead)
+  add_header Content-Security-Policy "frame-ancestors 'self' https://web.telegram.org https://telegram.org https://*.telegram.org" always;
+  # Limit upload size (imports/backups)
+  client_max_body_size 50M;
+
+  # Rate limiting - adjust req/sec as needed for your environment
+  # 1 request per second with a burst of 5
+  limit_req_zone $binary_remote_addr zone=mylimit:10m rate=1r/s;
+  limit_req zone=mylimit burst=5 nodelay;
+  # Optionally limit total concurrent connections per IP
+  limit_conn_zone $binary_remote_addr zone=addr:10m;
+  limit_conn addr 10;
+
+  # Proxy frontend (SPA)
+  location / {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_hide_header X-Frame-Options;  # Ensure container doesn't set X-Frame-Options
+    proxy_read_timeout 120s;
+    proxy_connect_timeout 30s;
+    proxy_buffering off;
+  }
+
+  # Prevent accidental exposure of dotfiles, env files, or repo artifacts
+  # Adjust patterns as needed for your environment
+  location ~* /(\.|\.env|\.git) {
+    deny all;
+    access_log off;
+    log_not_found off;
+  }
+
+  # Monitoring (Dozzle)
+  location /monitor/ {
+    proxy_pass http://127.0.0.1:9999/monitor/;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_hide_header X-Frame-Options;
+    # Optional: enforce Basic Auth at the Nginx layer for extra protection
+    # auth_basic "Dozzle Admin";
+    # auth_basic_user_file /etc/nginx/.htpasswd;
+  }
+}
+
 ```
+
+Примечания:
+- Certbot `--nginx` автоматически обновит конфигурацию и добавит корректные `ssl_certificate` пути; `/.well-known/acme-challenge/` необходимо разрешить для HTTP.
+- Не используйте `X-Frame-Options` — он конфликтует с Telegram Mini App embedding; используйте `Content-Security-Policy: frame-ancestors`.
+- `proxy_hide_header X-Frame-Options;` гарантирует, что контейнер не добавит header, который бы ломал embedding.
+- Добавьте `auth_basic` для `/monitor/` если вы хотите дополнительную защиту (htpasswd + systemd secret or strong password).
+- Consider adding `limit_req_zone` / `limit_conn` for rate-limiting if public traffic is a risk.
+
 
 Активация:
 
@@ -230,6 +319,34 @@ sudo certbot --nginx -d your-domain.com
 ```
 
 Следуйте инструкциям. Certbot автоматически настроит HTTPS и автообновление сертификата.
+
+### Рекомендации по hardening TLS (опционально)
+
+1. Генерация `dhparam` (увеличивает безопасность соединения):
+```bash
+sudo openssl dhparam -out /etc/ssl/certs/dhparam.pem 2048
+```
+
+2. Настройка безопасных TLS-параметров: обновите конфигурацию Nginx (см. https://ssl-config.mozilla.org/)
+например, добавьте в `server` блок:
+```nginx
+ssl_protocols TLSv1.3 TLSv1.2;
+ssl_prefer_server_ciphers off;
+ssl_session_timeout 1d;
+ssl_session_cache shared:SSL:10m;
+ssl_session_tickets off;
+ssl_stapling on;
+ssl_stapling_verify on;
+ssl_dhparam /etc/ssl/certs/dhparam.pem; # (если сгенерирован)
+```
+
+3. Проверьте конфигурацию с помощью:
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+4. Проверьте конфигурацию TLS и headers с помощью SSL Labs: `https://www.ssllabs.com/ssltest/` или `curl -I -k https://your-domain.com`.
 
 ---
 
@@ -270,6 +387,26 @@ https://your-domain.com/monitor/
 ```
 
 Логин: `admin`, пароль: ваш пароль.
+
+### Дополнительно: Basic Auth для /monitor
+Если вы хотите добавить дополнительный слой защиты на уровне Nginx (помимо авторизации Dozzle), вы можете включить Basic Auth на `/monitor/`.
+
+1. Установите apache2-utils (для htpasswd):
+```bash
+sudo apt install -y apache2-utils
+```
+2. Создайте файл паролей (безопасно храните его):
+```bash
+sudo htpasswd -c /etc/nginx/.htpasswd admin
+```
+3. В конфиге Nginx добавьте в блок `location /monitor/`:
+```nginx
+auth_basic "Dozzle Admin";
+auth_basic_user_file /etc/nginx/.htpasswd;
+```
+Перезапустите `nginx`.
+
+Примечание: при использовании `docker-compose`, держите credentials вне контейнеров в секрете или используйте другой слой прокси для защиты мониторинга.
 
 ---
 
@@ -378,6 +515,20 @@ docker image prune -a
 
 ### Бот не отвечает на команды
 
+### Проверка заголовков (ответ сервера)
+
+Проверьте, что ответ не содержит `X-Frame-Options` и содержит корректный CSP `frame-ancestors`:
+
+```bash
+# Показывает все заголовки ответа
+curl -I https://your-domain.com
+
+# Или проверить только интересующие заголовки
+curl -s -D - -o /dev/null https://your-domain.com | grep -i "^Content-Security-Policy\|^X-Frame-Options"
+```
+
+Если `X-Frame-Options` присутствует — ищите его в Nginx, CDN (Cloudflare, Fastly), LB, or WAF and disable it there.
+
 ```bash
 # Проверьте логи
 docker compose logs bot | tail -50
@@ -410,6 +561,14 @@ add_header Content-Security-Policy "frame-ancestors 'self' https://web.telegram.
 ```
 
 3. Пересоберите: `docker compose up -d --build frontend`
+
+4. Если проблема не исчезла — проверьте REVERSE PROXY / load balancer / CDN (внешний Nginx),
+  убедитесь, что тот не вставляет `X-Frame-Options: sameorigin`.
+  Пример как проверить заголовки ответа:
+```bash
+curl -I https://your-domain.com | sed -n '1,50p'
+```
+  Если в ответе есть `X-Frame-Options`, найдите, какая часть инфраструктуры добавляет header и отключите его.
 
 ### «Database is locked»
 

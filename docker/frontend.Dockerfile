@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 
 # Development stage
-FROM node:20-alpine AS development
+FROM node:22-alpine AS development
 WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm install

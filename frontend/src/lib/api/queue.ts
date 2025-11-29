@@ -3,6 +3,7 @@
 import { saveActivity, deleteActivity, saveGrowthRecord, deleteGrowthRecord, saveUserProfile, saveUserSettings, saveCustomActivity, deleteCustomActivity } from './sync';
 import { ApiError } from './client';
 import { getCurrentUserId } from '@/store/userContext';
+import { logger } from '@/lib/logger';
 
 interface QueueItem {
   id: string;
@@ -55,7 +56,7 @@ export const addToQueue = (action: QueueItem['action'], payload: unknown) => {
   };
   queue.push(item);
   localStorage.setItem(queueKey, JSON.stringify(queue));
-  console.log('Added to offline queue:', item);
+  logger.info('Added to offline queue', { item });
 };
 
 export const processQueue = async () => {
@@ -63,7 +64,7 @@ export const processQueue = async () => {
   
   const currentUserId = getCurrentUserId();
   if (!currentUserId) {
-    console.log('[Queue] No current user, skipping queue processing');
+    logger.debug('[Queue] No current user, skipping queue processing');
     return;
   }
   
@@ -76,11 +77,11 @@ export const processQueue = async () => {
   const otherUserQueue = queue.filter(item => item.userId && item.userId !== currentUserId);
   
   if (userQueue.length === 0) {
-    console.log('[Queue] No items for current user');
+    logger.debug('[Queue] No items for current user');
     return;
   }
 
-  console.log(`Processing ${userQueue.length} offline items for user ${currentUserId}...`);
+  logger.info(`Processing ${userQueue.length} offline items for user ${currentUserId}...`);
   const remainingQueue: QueueItem[] = [...otherUserQueue]; // Keep other users' items
 
   for (const item of userQueue) {
@@ -92,7 +93,7 @@ export const processQueue = async () => {
         // NOTIFICATIONS FEATURE DISABLED - 'update' and 'delete' schedule actions removed
         case 'update':
         case 'delete':
-          console.log('[Queue] Skipping disabled notification action:', item.action);
+          logger.debug('[Queue] Skipping disabled notification action', { action: item.action });
           break;
         case 'saveActivity':
           await saveActivity(p.userId, p.activity);
@@ -130,9 +131,9 @@ export const processQueue = async () => {
       };
 
       if (shouldDrop) {
-        console.error('Dropping queue item after repeated failures', nextItem);
+        logger.error('Dropping queue item after repeated failures', { nextItem });
       } else {
-        console.warn('Retrying queue item later', nextItem);
+        logger.warn('Retrying queue item later', { nextItem });
         remainingQueue.push(nextItem);
       }
     }

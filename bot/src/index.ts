@@ -36,16 +36,19 @@ const trustedProxies = (process.env.TRUSTED_PROXIES ?? 'loopback,linklocal,uniqu
   .split(',')
   .map((proxy) => proxy.trim())
   .filter(Boolean);
-app.set('trust proxy', trustedProxies);
+// Express's `trust proxy` accepts a comma-separated list; join the array to a string to be explicit
+app.set('trust proxy', trustedProxies.join(','));
 const port = process.env.PORT || 3000;
 
 // Security Middleware
 // Backend does not render HTML pages; CSP is primarily enforced at the frontend (Nginx) level.
 // To avoid overly permissive inline allowances while keeping responses safe, we rely on Helmet defaults
 // with a strict frameguard as per security audit recommendation.
+// Note: Do NOT set X-Frame-Options on backend; the frontend/Nginx controls CSP/frame-ancestors
+// Helmet is still used, but disable frameguard to avoid sending X-Frame-Options, which breaks embedding
 app.use(helmet({
   contentSecurityPolicy: false,
-  frameguard: { action: 'deny' }
+  frameguard: false
 }));
 
 app.use(cors({

@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import { saveUserSettings } from '@/lib/api/sync';
 import { getCurrentUserId } from '@/store/userContext';
+import { logger } from '@/lib/logger';
 import { addToQueue } from '@/lib/api/queue';
 
 export interface WalkSlice {
@@ -12,7 +13,7 @@ export interface WalkSlice {
 const getUserId = (): number => {
   const userId = getCurrentUserId();
   if (!userId) {
-    console.error('[WalkSlice] No user ID available');
+    logger.error('[WalkSlice] No user ID available');
     throw new Error('User not authenticated');
   }
   return userId;
@@ -29,7 +30,7 @@ export const createWalkSlice: StateCreator<WalkSlice> = (set) => ({
         addToQueue('saveSettings', { userId, settings: { activeWalkStart: startTime } });
       });
     } catch (error) {
-      console.error('[WalkSlice] Failed to sync walk start:', error);
+      logger.error('[WalkSlice] Failed to sync walk start:', { error });
     }
   },
   endWalk: () => {
@@ -41,7 +42,7 @@ export const createWalkSlice: StateCreator<WalkSlice> = (set) => ({
         addToQueue('saveSettings', { userId, settings: { activeWalkStart: null } });
       });
     } catch (error) {
-      console.error('[WalkSlice] Failed to sync walk end:', error);
+      logger.error('[WalkSlice] Failed to sync walk end:', { error });
     }
   },
 });

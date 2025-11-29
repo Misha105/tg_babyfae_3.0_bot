@@ -14,6 +14,8 @@ import {
   setCurrentUserId as setUserContextId,
   clearCachedData as clearUserContextData 
 } from './userContext';
+import { logger } from '@/lib/logger';
+import { handleApiError } from '@/lib/api/errorHandler';
 
 // Re-export user context functions for external use
 export { getCurrentUserId } from './userContext';
@@ -59,7 +61,7 @@ const createUserScopedStorage = () => ({
     const userId = getCurrentUserId();
     if (!userId) {
       // Don't persist data without a valid user ID
-      console.warn('[Storage] Attempted to save without user ID, skipping');
+      logger.warn('[Storage] Attempted to save without user ID, skipping');
       return;
     }
     const key = `${name}-${userId}`;
@@ -98,12 +100,12 @@ export const useStore = create<AppState>()(
        * It fetches data from server and only falls back to cache if server is unreachable
        */
       initializeForUser: async (userId: number) => {
-        console.log(`[Store] Initializing for user ${userId}`);
+        logger.info(`[Store] Initializing for user ${userId}`);
         
         // Check if we're switching users
         const previousUserId = get()._currentUserId;
         if (previousUserId && previousUserId !== userId) {
-          console.log(`[Store] User changed from ${previousUserId} to ${userId}, clearing state`);
+          logger.info(`[Store] User changed from ${previousUserId} to ${userId}, clearing state`);
           // Clear previous user's state from memory
           set({
             profile: null,
@@ -130,7 +132,7 @@ export const useStore = create<AppState>()(
           await processQueue();
           
           // ALWAYS fetch from server first - server is the source of truth
-          console.log(`[Store] Fetching data from server for user ${userId}`);
+          logger.info(`[Store] Fetching data from server for user ${userId}`);
           const data = await fetchUserData(userId) as UserDataResponse;
           
           // Extract timer states from settings for cross-device persistence
@@ -154,14 +156,16 @@ export const useStore = create<AppState>()(
             _hasHydrated: true,
           });
           
-          console.log(`[Store] Server sync complete for user ${userId}`, {
+          logger.info(`[Store] Server sync complete for user ${userId}`, {
             hasProfile: !!data?.profile,
             activitiesCount: data?.activities?.length || 0,
             activeSleepStart: serverActiveSleepStart,
             activeWalkStart: serverActiveWalkStart,
           });
         } catch (error) {
-          console.error(`[Store] Server sync failed for user ${userId}:`, error);
+          // Centralized API error handling
+          logger.error(`[Store] Server sync failed for user ${userId}`, { error });
+          handleApiError(error);
           
           // Only fall back to local cache if server is completely unreachable
           // and we have cached data for THIS specific user
@@ -170,7 +174,7 @@ export const useStore = create<AppState>()(
             try {
               const parsed = JSON.parse(cachedData);
               if (parsed?.state) {
-                console.log(`[Store] Using cached data for user ${userId}`);
+                logger.info(`[Store] Using cached data for user ${userId}`);
                 set({
                   profile: parsed.state.profile || null,
                   settings: parsed.state.settings ? { ...parsed.state.settings, notificationsEnabled: false } : {
@@ -188,7 +192,7 @@ export const useStore = create<AppState>()(
                 });
               }
             } catch (parseError) {
-              console.error('[Store] Failed to parse cached data:', parseError);
+              logger.error('[Store] Failed to parse cached data:', { error: parseError });
             }
           }
           
@@ -232,10 +236,10 @@ export const useStore = create<AppState>()(
           return newState;
         });
         
-        console.log('Data imported successfully to local store');
+        logger.info('Data imported successfully to local store');
       },
       resetAllData: async (userId: number) => {
-        console.log('[Store] resetAllData called with userId:', userId, typeof userId);
+        logger.info('[Store] resetAllData called', { userId, type: typeof userId });
         
         if (!userId || typeof userId !== 'number' || userId <= 0) {
           throw new Error(`Invalid user ID for resetAllData: ${userId}`);
@@ -262,9 +266,10 @@ export const useStore = create<AppState>()(
           // Clear persisted storage for this specific user
           localStorage.removeItem(`babyfae-storage-${userId}`);
           
-          console.log('All data reset successfully');
+          logger.info('All data reset successfully');
         } catch (e) {
-          console.error('Failed to reset data:', e);
+          logger.error('Failed to reset data:', { error: e });
+          handleApiError(e);
           throw e;
         }
       },
@@ -272,7 +277,7 @@ export const useStore = create<AppState>()(
         // Verify we're syncing for the correct user
         const currentUser = getCurrentUserId();
         if (currentUser !== userId) {
-          console.warn(`[Store] Sync requested for user ${userId} but current user is ${currentUser}`);
+          logger.warn('[Store] Sync requested for user different than current', { requestedUserId: userId, currentUserId: currentUser });
           return;
         }
         
@@ -351,9 +356,10 @@ export const useStore = create<AppState>()(
           }
 
           set({ _isServerSynced: true });
-          console.log('Synced with server successfully');
+          logger.info('Synced with server successfully');
         } catch (e) {
-          console.error('Sync failed:', e);
+          logger.error('Sync failed:', { error: e });
+          handleApiError(e);
           set({ _isServerSynced: false });
         }
       }
@@ -364,7 +370,7 @@ export const useStore = create<AppState>()(
       onRehydrateStorage: () => () => {
         // Don't auto-hydrate - we handle this manually in initializeForUser
         // This prevents loading wrong user's data
-        console.log('[Store] Rehydration callback triggered');
+        logger.debug('[Store] Rehydration callback triggered');
       },
       partialize: (state) => ({
         profile: state.profile,

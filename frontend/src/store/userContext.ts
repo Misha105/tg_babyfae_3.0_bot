@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 /**
  * User context management for store isolation
  * This module handles the current user ID tracking to ensure data isolation
@@ -23,7 +24,7 @@ export const setCurrentUserId = (userId: number | null): void => {
     localStorage.removeItem('babyfae-storage-temp');
     
     // Log user change for debugging
-    console.log(`[UserContext] User ID changed from ${previousUserId} to ${userId}`);
+    logger.debug(`[UserContext] User ID changed from ${previousUserId} to ${userId}`);
   }
 };
 

@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import { saveUserSettings } from '@/lib/api/sync';
 import { getCurrentUserId } from '@/store/userContext';
+import { logger } from '@/lib/logger';
 import { addToQueue } from '@/lib/api/queue';
 
 export interface SleepSlice {
@@ -12,7 +13,7 @@ export interface SleepSlice {
 const getUserId = (): number => {
   const userId = getCurrentUserId();
   if (!userId) {
-    console.error('[SleepSlice] No user ID available');
+    logger.error('[SleepSlice] No user ID available');
     throw new Error('User not authenticated');
   }
   return userId;
@@ -29,7 +30,7 @@ export const createSleepSlice: StateCreator<SleepSlice> = (set) => ({
         addToQueue('saveSettings', { userId, settings: { activeSleepStart: startTime } });
       });
     } catch (error) {
-      console.error('[SleepSlice] Failed to sync sleep start:', error);
+      logger.error('[SleepSlice] Failed to sync sleep start:', { error });
     }
   },
   endSleep: () => {
@@ -41,7 +42,7 @@ export const createSleepSlice: StateCreator<SleepSlice> = (set) => ({
         addToQueue('saveSettings', { userId, settings: { activeSleepStart: null } });
       });
     } catch (error) {
-      console.error('[SleepSlice] Failed to sync sleep end:', error);
+      logger.error('[SleepSlice] Failed to sync sleep end:', { error });
     }
   },
 });

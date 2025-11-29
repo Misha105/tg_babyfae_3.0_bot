@@ -82,6 +82,12 @@ curl http://localhost:8080/health
 - [ ] Таймер прогулки работает корректно
 - [ ] Настройки сохраняются
 
+## Developer changes to note
+
+- Centralized Telegram SDK mounting: The SDK is now initialized centrally in `frontend/src/lib/telegram/init.ts`; components should not call `mount()` themselves (e.g., `TelegramViewportSync` does not call `viewport.mount()` anymore). This resolves `ConcurrentCallError` issues.
+- Logging: Frontend uses a centralized `logger` (`frontend/src/lib/logger.ts`) and the ESLint config disallows direct `console.*` usage. Replace `console.*` with `logger` methods.
+- API client: `frontend/src/lib/api/client.ts` now provides `timeoutMs` (defaults to 30s), handles non-JSON responses gracefully, and throws `ApiError` for non-OK responses; use `handleApiError` for user-facing toasts/alerts.
+
 ---
 
 ## Устранение проблем

@@ -2,12 +2,13 @@ import type { StateCreator } from 'zustand';
 import type { BabyProfile } from '@/types';
 import { saveUserProfile } from '@/lib/api/sync';
 import { getCurrentUserId } from '@/store/userContext';
+import { logger } from '@/lib/logger';
 import { addToQueue } from '@/lib/api/queue';
 
 const getUserId = (): number => {
   const userId = getCurrentUserId();
   if (!userId) {
-    console.error('[ProfileSlice] No user ID available');
+    logger.error('[ProfileSlice] No user ID available');
     throw new Error('User not authenticated');
   }
   return userId;

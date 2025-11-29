@@ -1,5 +1,6 @@
 import { cloudStorage as telegramCloudStorage } from '@telegram-apps/sdk';
 import { mockCloudStorage } from './mock-cloud-storage';
+import { logger } from '@/lib/logger';
 
 export interface StorageAdapter {
   getItem(key: string): Promise<string | null>;
@@ -17,7 +18,7 @@ class CloudStorageAdapter implements StorageAdapter {
       // We'll assume telegramCloudStorage is the signal or object
       this.cs = telegramCloudStorage;
     } catch (e) {
-      console.warn('Failed to access CloudStorage, falling back to mock', e);
+      logger.warn('Failed to access CloudStorage, falling back to mock', { error: e });
       this.cs = null;
     }
   }
@@ -36,7 +37,7 @@ class CloudStorageAdapter implements StorageAdapter {
       const result = await this.cs.getItem(key);
       return result || null;
     } catch (e) {
-      console.error('CloudStorage getItem error:', e);
+      logger.error('CloudStorage getItem error:', { error: e });
       // Fallback to mock if SDK fails (e.g. not in Telegram)
       return mockCloudStorage.getItem(key);
     }
@@ -52,11 +53,11 @@ class CloudStorageAdapter implements StorageAdapter {
       }
 
       if (value.length > 4096) {
-        console.warn(`Value for key ${key} exceeds 4KB limit. Save may fail.`);
+        logger.warn(`Value for key ${key} exceeds 4KB limit. Save may fail.`);
       }
       await this.cs.setItem(key, value);
     } catch (e) {
-      console.error('CloudStorage setItem error:', e);
+      logger.error('CloudStorage setItem error:', { error: e });
       // Fallback to mock
       return mockCloudStorage.setItem(key, value);
     }
@@ -72,7 +73,7 @@ class CloudStorageAdapter implements StorageAdapter {
       }
       await this.cs.removeItem(key);
     } catch (e) {
-      console.error('CloudStorage removeItem error:', e);
+      logger.error('CloudStorage removeItem error:', { error: e });
       return mockCloudStorage.removeItem(key);
     }
   }

@@ -12,6 +12,7 @@ import { Header } from '@/components/ui/Header';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { BrowserFallback } from '@/components/BrowserFallback';
 import { initTelegram, isRealTelegramWebApp } from '@/lib/telegram/init';
+import { logger } from '@/lib/logger';
 import { getTelegramUserId } from '@/lib/telegram/userData';
 import { processQueue } from '@/lib/api/queue';
 import { TelegramViewportSync } from '@/components/TelegramViewportSync';
@@ -46,24 +47,27 @@ function App() {
 
     const initialize = async () => {
       try {
+        logger.debug('[App] Calling initTelegram()');
         // Initialize Telegram SDK first (async, waits for all mounts)
         await initTelegram();
+        logger.debug('[App] initTelegram() resolved');
         
         // Get the current Telegram user ID
         const userId = getTelegramUserId();
         
         if (!userId || userId === 0) {
           // No valid user ID - this shouldn't happen in production Telegram
-          console.error('[App] No valid Telegram user ID available');
+          logger.error('[App] No valid Telegram user ID available');
           setInitErrorType('user_id');
           return;
         }
         
-        console.log(`[App] Initializing app for user ${userId}`);
+        logger.info(`[App] Initializing app for user ${userId}`);
         
         // Initialize store for this specific user
         // This will fetch data from server and properly scope localStorage
         await initializeForUser(userId);
+        logger.debug('[App] initializeForUser resolved');
         
         // Process offline queue after initialization
         processQueue();
@@ -72,7 +76,7 @@ function App() {
         window.addEventListener('online', processQueue);
         
       } catch (error) {
-        console.error('[App] Initialization failed:', error);
+        logger.error('[App] Initialization failed', { error });
         setInitErrorType('init');
       }
     };

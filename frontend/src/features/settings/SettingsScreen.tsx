@@ -13,9 +13,11 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal';
 // import { syncSchedule, deleteSchedule } from '@/lib/api/notifications';
 import { exportUserDataToChat, importUserData as importUserDataApi } from '@/lib/api/sync';
 import { ApiError } from '@/lib/api/client';
+import { handleApiError, isApiError } from '@/lib/api/errorHandler';
 // import { addToQueue } from '@/lib/api/queue';
 import { createDateFromInput } from '@/lib/dateUtils';
 import { toast } from '@/lib/toast';
+import { logger } from '@/lib/logger';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   star: Star,
@@ -71,12 +73,12 @@ export const SettingsScreen: React.FC = () => {
             });
             toast.success(t('settings.export_sent_to_chat', 'Backup sent to your chat!'));
             return;
-          } catch (error) {
-            if (error instanceof ApiError && error.status === 429) {
-              toast.error(t('settings.export_limit_reached', 'Too many backup requests. Please wait a minute.'));
-              return;
-            }
-            console.warn('Backend export failed, falling back to local download', error);
+            } catch (error) {
+              if (error instanceof ApiError && error.status === 429) {
+                toast.error(t('settings.export_limit_reached', 'Too many backup requests. Please wait a minute.'));
+                return;
+              }
+              logger.warn('Backend export failed, falling back to local download', { error });
           }
       }
 
@@ -95,7 +97,7 @@ export const SettingsScreen: React.FC = () => {
           return;
         } catch (shareError) {
           if ((shareError as Error).name !== 'AbortError') {
-            console.warn('Share failed, falling back to download', shareError);
+            logger.warn('Share failed, falling back to download', { error: shareError });
           } else {
             return; // User cancelled share
           }
@@ -113,7 +115,7 @@ export const SettingsScreen: React.FC = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Export failed:', error);
+      logger.error('Export failed:', { error });
       toast.error(t('settings.export_error', 'Failed to export data'));
     }
   };
@@ -146,9 +148,13 @@ export const SettingsScreen: React.FC = () => {
       await syncWithServer(userId);
       toast.success(t('settings.import_success', 'Data imported successfully'));
     } catch (error) {
-      console.error('Import failed:', error);
+      logger.error('Import failed:', { error });
+      handleApiError(error);
       const message = error instanceof Error ? error.message : t('settings.import_error', 'Failed to import data. Invalid file format.');
-      toast.error(message);
+      // If handleApiError handled it, we may want to avoid duplicate toast; only show generic message when not an ApiError
+      if (!isApiError(error)) {
+        toast.error(message);
+      }
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) {
@@ -482,18 +488,18 @@ export const SettingsScreen: React.FC = () => {
         onConfirm={async () => {
           try {
             const userId = getCurrentUserId();
-            console.log('Attempting to clear data for user:', userId, typeof userId);
+            logger.info('Attempting to clear data for user', { userId, type: typeof userId });
             
             if (userId && userId > 0) {
               await resetAllData(userId);
               toast.success(t('settings.data_cleared', 'All data has been cleared'));
               setShowClearDataConfirm(false);
             } else {
-              console.error('User ID not found or invalid:', userId);
+              logger.error('User ID not found or invalid', { userId });
               toast.error(t('common.error_generic', 'An error occurred') + ': User ID missing or invalid');
             }
           } catch (error) {
-            console.error('Failed to clear data', error);
+            logger.error('Failed to clear data', { error });
             // Use direct string interpolation to ensure the error message is shown, 
             // bypassing potential translation key masking
             const errorMessage = error instanceof Error ? error.message : String(error);

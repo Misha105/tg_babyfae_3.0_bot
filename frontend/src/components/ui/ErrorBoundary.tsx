@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { logger } from '@/lib/logger';
 import i18n from '@/lib/i18n';
 
 interface Props {
@@ -22,7 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error:', error, errorInfo);
+    logger.error('Uncaught error caught by ErrorBoundary', { error, errorInfo });
   }
 
   public render() {

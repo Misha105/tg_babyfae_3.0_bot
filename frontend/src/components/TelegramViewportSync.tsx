@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { viewport } from '@telegram-apps/sdk-react';
 import { isSdkInitialized } from '@/lib/telegram/init';
+import { logger } from '@/lib/logger';
 
 export const TelegramViewportSync = () => {
   const [isMounted, setIsMounted] = useState(false);
@@ -51,19 +52,19 @@ export const TelegramViewportSync = () => {
               setIsMounted(true);
             }
           } catch (e) {
-            console.warn('Viewport check failed', e);
+            logger.warn('Viewport check failed', { error: e as unknown });
           }
         }, 100));
         
-        // Timeout after 3 seconds - give up waiting
+        // Timeout after 10 seconds - give up waiting
         trackTimeout(setTimeout(() => {
           if (!cancelled) {
             clearTrackedInterval(waitInterval);
           }
-        }, 3000));
+        }, 10000));
         
       } catch (e) {
-        console.warn('Viewport access failed', e);
+        logger.warn('Viewport access failed', { error: e as unknown });
       }
     };
     
@@ -97,13 +98,15 @@ export const TelegramViewportSync = () => {
     const sync = () => {
       try {
         // Access safeAreaInsets safely handling both signal and object patterns
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const vp = viewport as any;
-        const insets = typeof vp.safeAreaInsets === 'function' ? vp.safeAreaInsets() : vp.safeAreaInsets;
+        type MaybeNumberOrFn = number | (() => number);
+        type Insets = { top?: MaybeNumberOrFn; bottom?: MaybeNumberOrFn; left?: MaybeNumberOrFn; right?: MaybeNumberOrFn };
+        const tvp = viewport as { safeAreaInsets?: Insets | (() => Insets); expand?: () => void } | undefined;
+        if (!tvp) return;
+        const insets = typeof tvp.safeAreaInsets === 'function' ? tvp.safeAreaInsets() : tvp.safeAreaInsets;
         
         if (insets) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const getVal = (val: any) => typeof val === 'number' ? val : (typeof val === 'function' ? val() : 0);
+          const getVal = (val: MaybeNumberOrFn | undefined) => typeof val === 'number' ? val : (typeof val === 'function' ? val() : 0);
           
           const top = getVal(insets.top);
           const bottom = getVal(insets.bottom);
@@ -116,7 +119,7 @@ export const TelegramViewportSync = () => {
           document.documentElement.style.setProperty('--tg-safe-area-right', `${right}px`);
         }
       } catch (e) {
-        console.warn('Failed to sync safe areas', e);
+        logger.warn('Failed to sync safe areas', { error: e as unknown });
       }
     };
 
@@ -125,10 +128,10 @@ export const TelegramViewportSync = () => {
     
     // Expand
     try {
-        viewport.expand();
-    } catch (e) { console.warn('Expand failed', e); }
+      (viewport as { expand?: () => void } | undefined)?.expand?.();
+    } catch (e) { logger.warn('Expand failed', { error: e as unknown }); }
 
-    const interval = setInterval(sync, 200);
+    const interval = setInterval(sync, 500);
     return () => clearInterval(interval);
   }, [isMounted]);
 

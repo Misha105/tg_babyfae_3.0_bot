@@ -1,4 +1,4 @@
-import { 
+import {
   init, 
   backButton, 
   mainButton, 
@@ -6,6 +6,7 @@ import {
   themeParams, 
   miniApp
 } from '@telegram-apps/sdk-react';
+import { logger } from '@/lib/logger';
 
 let isInitialized = false;
 let initPromise: Promise<void> | null = null;
@@ -71,7 +72,8 @@ export async function initTelegram(): Promise<void> {
   }
 
   initPromise = doInit();
-  return initPromise;
+  // Ensure consumers always get a promise that resolves/rejects and clear initPromise
+  return initPromise.finally(() => { initPromise = null; });
 }
 
 /**
@@ -84,8 +86,10 @@ export function isSdkInitialized(): boolean {
 async function doInit(): Promise<void> {
   try {
     // Initialize the SDK
+    logger.debug('[initTelegram] Starting Telegram SDK init');
     init();
-    isInitialized = true;
+    // Not marking as initialized until mounts are complete
+    isInitialized = false;
 
     // Mount components sequentially to avoid race conditions
     // Each mount is wrapped in try-catch to continue even if one fails
@@ -96,7 +100,7 @@ async function doInit(): Promise<void> {
         backButton.mount(); 
       }
     } catch (e) { 
-      console.warn('backButton mount failed', e); 
+      logger.warn('backButton mount failed', { error: e }); 
     }
     
     // Main button (sync mount, no isMounting check needed)
@@ -105,7 +109,7 @@ async function doInit(): Promise<void> {
         mainButton.mount(); 
       }
     } catch (e) { 
-      console.warn('mainButton mount failed', e); 
+      logger.warn('mainButton mount failed', { error: e }); 
     }
     
     // Theme params - mount and wait for it
@@ -114,7 +118,7 @@ async function doInit(): Promise<void> {
         await themeParams.mount(); 
       }
     } catch (e) { 
-      console.warn('themeParams mount failed', e); 
+      logger.warn('themeParams mount failed', { error: e }); 
     }
     
     // Viewport - mount and wait for it
@@ -123,7 +127,7 @@ async function doInit(): Promise<void> {
         await viewport.mount();
       }
     } catch (e) { 
-      console.warn('viewport mount failed', e); 
+      logger.warn('viewport mount failed', { error: e }); 
     }
     
     // Mini App - mount and configure
@@ -139,13 +143,15 @@ async function doInit(): Promise<void> {
         }
       }
     } catch (e) { 
-      console.warn('miniApp mount failed', e); 
+      logger.warn('miniApp mount failed', { error: e }); 
     }
     
-    console.log('Telegram SDK initialized');
-  } catch (e) {
-    console.error('Telegram SDK init failed (running in browser?)', e);
-    // Still mark as initialized to prevent repeated attempts
+    logger.info('Telegram SDK initialized successfully');
     isInitialized = true;
+  } catch (e) {
+    logger.error('Telegram SDK init failed (running in browser?)', { error: e });
+    // Clear initialized flag to allow retries and clear pending promise
+    isInitialized = false;
+    throw e;
   }
 }
